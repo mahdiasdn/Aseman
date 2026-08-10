@@ -40,7 +40,12 @@ class WeatherService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        startForeground(101, lastKnownNotification())
+        try {
+            startForeground(101, lastKnownNotification())
+        } catch (_: Exception) {
+            stopSelf()
+            return
+        }
         scheduleSelfWake()
     }
 
@@ -201,6 +206,14 @@ class WeatherService : Service() {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setOngoing(true)
+            .setAutoCancel(false)
+            .setDeleteIntent(
+                PendingIntent.getForegroundService(
+                    this, 2,
+                    Intent(this, WeatherService::class.java),
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+            )
             .setSilent(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(
