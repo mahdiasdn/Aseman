@@ -3,27 +3,17 @@ package com.iliyateam.aseman
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import androidx.compose.runtime.collectAsState
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.graphics.Color
 import android.os.Build
-import androidx.compose.material.icons.filled.MyLocation
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -31,20 +21,24 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -55,13 +49,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.iliyateam.aseman.ui.AboutDialog
 import com.iliyateam.aseman.ui.CitiesTab
 import com.iliyateam.aseman.ui.SettingsScreen
 import com.iliyateam.aseman.ui.WeatherTab
@@ -72,7 +69,6 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        /* درخواست ۱۲۰ هرتز — بدون وابستگی به نسخهٔ SDK */
         if (Build.VERSION.SDK_INT >= 34) {
             try {
                 val high = android.view.WindowManager::class.java
@@ -202,7 +198,7 @@ fun MainScaffold(prefs: Prefs) {
                 )
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Filled.Info, null) },
-                    label = { Text(prefs.t("about")) },
+                    label = { Text(prefs.t("about_app")) },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
@@ -222,7 +218,6 @@ fun MainScaffold(prefs: Prefs) {
     ) {
 
         Scaffold(
-
             topBar = {
                 TopAppBar(
                     title = {
@@ -288,7 +283,6 @@ fun MainScaffold(prefs: Prefs) {
 
             HorizontalPager(
                 state = pagerState,
-
                 modifier = Modifier.fillMaxSize().padding(pad)
             ) { page ->
                 when (page) {
@@ -302,27 +296,6 @@ fun MainScaffold(prefs: Prefs) {
         }
     }
 
-    if (showAboutDialog) {
-        AlertDialog(
-            onDismissRequest = { showAboutDialog = false },
-            title = { Text(prefs.t("about")) },
-            text = {
-                androidx.compose.foundation.layout.Column {
-                    Text(prefs.t("about_text"))
-                    TextButton(onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/Aseman_weatherapp"))
-                        ctx.startActivity(intent)
-                        showAboutDialog = false
-                    }) {
-                        Text(prefs.t("telegram"))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
+    /* پنجرهٔ مشترک درباره — همانی که تنظیمات هم استفاده می‌کند */
+    if (showAboutDialog) AboutDialog(prefs) { showAboutDialog = false }
 }

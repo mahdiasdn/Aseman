@@ -132,6 +132,10 @@ private val FA = mapOf(
     "notif_city" to "شهر ویجت و اعلان", "follow_app" to "همراه با شهر اپ",
     "bg_keep" to "زنده‌ماندن در پس‌زمینه", "bg_keep_desc" to "بازکردن تنظیمات محدودیت باتری این اپ",
     "widget_bg" to "پس‌زمینهٔ ویجت", "trans" to "شفاف", "solid" to "یکدست",
+    "about_app" to "درباره آسمان", "developer" to "توسعه‌دهنده",
+    "rate_myket" to "امتیاز و نظر در مایکت", "version" to "نسخه",
+    "editor_line" to "ویرایش و عرضه: [MightyMahdi]",
+    "github" to "سورس‌کد در گیت‌هاب",
 )
 
 private val EN = mapOf(
@@ -166,5 +170,9 @@ private val EN = mapOf(
     "notif_city" to "Widget & notification city", "follow_app" to "Same as app city",
     "bg_keep" to "Background survival", "bg_keep_desc" to "Open this app's battery restrictions",
     "widget_bg" to "Widget background", "trans" to "Translucent", "solid" to "Solid",
+    "about_app" to "About Aseman", "developer" to "Developer",
+    "rate_myket" to "Rate on Myket", "version" to "Version",
+    "editor_line" to "Edited & published by: [MightyMahdi]",
+    "github" to "Source on GitHub",
 )
 fun Prefs.t(key: String): String = (if (lang == "fa") FA else EN)[key] ?: key

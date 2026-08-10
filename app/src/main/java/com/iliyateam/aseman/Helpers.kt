@@ -212,3 +212,31 @@ fun weatherEmoji(code: Int, isDay: Boolean): String = when {
     code in 95..99 -> "⛈️"
     else -> "🌦️"
 }
+
+fun openMyket(ctx: android.content.Context) {
+    val pkg = ctx.packageName
+    try {
+        ctx.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse("myket://details?id=$pkg"))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (_: Exception) {
+        try {
+            ctx.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://myket.ir/app/$pkg"))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) { }
+    }
+}
+
+fun openUrl(ctx: android.content.Context, url: String) {
+    try {
+        ctx.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (_: Exception) { }
+}

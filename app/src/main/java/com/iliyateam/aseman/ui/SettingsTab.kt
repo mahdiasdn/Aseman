@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.outlined.Info
+import com.iliyateam.aseman.openMyket
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material.icons.outlined.LocationCity
 import com.iliyateam.aseman.CityDb
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import com.iliyateam.aseman.openUrl
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,7 +65,7 @@ fun SettingsScreen(prefs: Prefs, pad: PaddingValues) {
     var dialog by remember { mutableStateOf<String?>(null) }
     var cityDialog by remember { mutableStateOf(false) }
     var cityQuery by remember { mutableStateOf("") }
-
+    var aboutDialog by remember { mutableStateOf(false) }
     Column(
         Modifier
             .fillMaxSize()
@@ -134,6 +137,9 @@ fun SettingsScreen(prefs: Prefs, pad: PaddingValues) {
                         .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
                 )
             }
+        }
+        SettingRow(Icons.Outlined.Info, prefs.t("about_app"), prefs.t("developer")) {
+            aboutDialog = true
         }
     }
 
@@ -211,6 +217,7 @@ fun SettingsScreen(prefs: Prefs, pad: PaddingValues) {
             confirmButton = { }
         )
     }
+    if (aboutDialog) AboutDialog(prefs) { aboutDialog = false }
 }
 
 
@@ -294,7 +301,7 @@ private fun AccentDialog(prefs: Prefs, onDismiss: () -> Unit) {
                 AccentDot(prefs, "pink", 0xFFC14E82)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
+        confirmButton = { TextButton(onClick = onDismiss) {Text(if (prefs.lang == "fa") "باشه" else "OK") } }
     )
 }
 
@@ -340,7 +347,7 @@ private fun FontSizeDialog(prefs: Prefs, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (prefs.lang == "fa") "باشه" else "OK") } }
     )
 }
 
@@ -370,6 +377,52 @@ private fun UnitsDialog(prefs: Prefs, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (prefs.lang == "fa") "باشه" else "OK") } }
     )
+}
+
+@Composable
+fun AboutDialog(prefs: Prefs, onDismiss: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("آسمان ☁️", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("${prefs.t("version")} 1.2", fontWeight = FontWeight.Bold)
+                Text("${prefs.t("developer")}: [MightyMahdi]")
+                Text(
+                    prefs.t("editor_line"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AboutButton(prefs.t("rate_myket")) { openMyket(ctx) }
+                AboutButton(prefs.t("github")) {
+                    openUrl(ctx, "https://github.com/mahdiasdn/Aseman")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (prefs.lang == "fa") "باشه" else "OK")
+            }
+        }
+    )
+}
+
+@Composable
+private fun AboutButton(label: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Text(
+            label,
+            Modifier.padding(14.dp),
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            fontWeight = FontWeight.Bold
+        )
+    }
 }
