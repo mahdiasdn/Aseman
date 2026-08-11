@@ -64,7 +64,8 @@ class WeatherViewModel : ViewModel() {
 
     fun load(lat: Double, lon: Double, city: String, silent: Boolean = false) {
         last = Triple(lat, lon, city)
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             if (!silent) _state.value = State.Loading
             try {
                 val w = WeatherApi.instance.getWeather(
@@ -128,6 +129,7 @@ class WeatherViewModel : ViewModel() {
     val vpnHint = _vpnHint
     val results: StateFlow<List<GeoResult>> = _results
 
+    private var loadJob: Job? = null
     private var searchJob: Job? = null
 
     fun search(q: String, lang: String) {

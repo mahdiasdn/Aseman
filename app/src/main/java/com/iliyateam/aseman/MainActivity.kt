@@ -13,6 +13,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -109,12 +114,18 @@ fun Root() {
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
-        try {
-            val i = Intent(ctx, WeatherService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                ContextCompat.startForegroundService(ctx, i)
-            else ctx.startService(i)
-        } catch (_: Exception) { }
+        /* رفرش فوری هنگام باز شدن + زمان‌بندی دوره‌ای */
+        WorkManager.getInstance(ctx).enqueueUniqueWork(
+            "aseman_now", ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<WeatherWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+        )
+        RefreshScheduler.schedule(ctx)
     }
 
     LaunchedEffect(prefs.lang, loadedLang) {
@@ -122,6 +133,10 @@ fun Root() {
             delay(250)
             (ctx as? ComponentActivity)?.recreate()
         }
+    }
+
+    LaunchedEffect(prefs.refresh) {
+        RefreshScheduler.schedule(ctx)
     }
 
     CompositionLocalProvider(

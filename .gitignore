@@ -16,3 +16,9 @@ local.properties
 *.keystore
 *.jks
 signing.properties
+# خروجی بیلد و APK
+app/release/
+*.apk
+
+# فایل‌های IDE
+.idea/

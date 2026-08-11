@@ -27,20 +27,27 @@ class WeatherWidgetProvider : AppWidgetProvider() {
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, WeatherWidgetProvider::class.java))
 
-            // ۱) همین حالا نشان بده «در حال بروزرسانی»
+            /* ۱) وضعیت «در حال بروزرسانی» را نشان بده */
             for (id in ids) update(context, mgr, id, true)
 
-            // ۲) سرویس را بیدار کن تا دادهٔ تازه بگیرد
-            try {
-                ContextCompat.startForegroundService(
-                    context, Intent(context, WeatherService::class.java)
-                )
-            } catch (_: Exception) { }
+            /* ۲) Worker را enqueue کن */
+            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                "aseman_now",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                androidx.work.OneTimeWorkRequestBuilder<WeatherWorker>()
+                    .setConstraints(
+                        androidx.work.Constraints.Builder()
+                            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+            )
 
-            // ۳) بعد از ۴ ثانیه دادهٔ تازه را نشان بده
-            Handler(Looper.getMainLooper()).postDelayed({
-                for (id in ids) update(context, mgr, id, false)
-            }, 4000)
+            /* ۳) Timeout: اگر Worker بعد از ۱۵ ثانیه موفق نشد، ویجت را با دادهٔ قبلی برگردان */
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val currentIds = mgr.getAppWidgetIds(ComponentName(context, WeatherWidgetProvider::class.java))
+                for (id in currentIds) update(context, mgr, id, false)
+            }, 15_000)
         }
     }
 
