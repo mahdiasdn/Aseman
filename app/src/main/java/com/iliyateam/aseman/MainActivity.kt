@@ -136,7 +136,26 @@ fun Root() {
     }
 
     LaunchedEffect(prefs.refresh) {
+
         RefreshScheduler.schedule(ctx)
+    }
+    LaunchedEffect(prefs.refresh) {
+        RefreshScheduler.schedule(ctx)
+    }
+
+    /* با تغییر واحد دما/باد، نوتیفیکیشن و ویجت همان لحظه نو می‌شوند */
+    LaunchedEffect(prefs.uTemp, prefs.uWind) {
+        WorkManager.getInstance(ctx).enqueueUniqueWork(
+            "aseman_now",
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<WeatherWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+        )
     }
 
     CompositionLocalProvider(
