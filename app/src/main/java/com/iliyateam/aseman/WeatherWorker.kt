@@ -29,8 +29,9 @@ class WeatherWorker(
     /* برای Expedited Work — اندروید به آن امتیاز foreground می‌دهد */
     override suspend fun getForegroundInfo(): androidx.work.ForegroundInfo {
         val sp = ctx.getSharedPreferences("widget", Context.MODE_PRIVATE)
+
         return androidx.work.ForegroundInfo(
-            101,
+            100,
             buildNotification(
                 sp.getString("line", "…") ?: "…",
                 sp.getString("city", "آسمان") ?: "آسمان",
@@ -38,7 +39,6 @@ class WeatherWorker(
             )
         )
     }
-
     override suspend fun doWork(): Result {
         return try {
             val pd = ctx.applicationContext.dataStore.data.first()
@@ -161,26 +161,37 @@ class WeatherWorker(
 
     private suspend fun checkAlerts(w: WeatherResponse, lang: String) {
         try {
-            /* ساعت فعلی به UTC — هم‌راستا با hourly که با timezone=UTC گرفته شده */
-            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:00", java.util.Locale.US)
-            val nowHour = java.text.SimpleDateFormat(
-                "yyyy-MM-dd'T'HH:00",
-                java.util.Locale.US
-            ).format(java.util.Date())
 
-            val idx = maxOf(0, w.hourly.time.indexOf(nowHour))
-            val next = w.hourly.code.subList(idx, minOf(w.hourly.code.size, idx + 3))
+            val nowHour = w.current.time.take(13) + ":00"
+
+            val idx = w.hourly.time.indexOf(nowHour)
+            if (idx < 0) return
+
+            val next = w.hourly.code.subList(
+                idx,
+                minOf(w.hourly.code.size, idx + 3)
+            )
             val type = when {
                 next.any { it in 95..99 } -> "storm"
                 next.any { it in 71..77 || it in 85..86 } -> "snow"
                 next.any { it in 51..67 || it in 80..82 } -> "rain"
                 else -> null
             } ?: return
-            val last = (ctx.applicationContext.dataStore.data.first()[Prefs.KEY_ALERT_LAST] ?: "0")
-                .toLongOrNull() ?: 0L
+            val savedLast = ctx.applicationContext.dataStore.data.first()[Prefs.KEY_ALERT_LAST]
+            val parts = savedLast?.split("|")
+
+            val lastType = parts?.getOrNull(0)
+            val lastTime = parts?.getOrNull(1)?.toLongOrNull() ?: 0L
+
             val now = System.currentTimeMillis()
-            if (now - last < 6 * 3600_000L) return
-            ctx.applicationContext.dataStore.edit { it[Prefs.KEY_ALERT_LAST] = "$now" }
+
+            if (lastType == type && now - lastTime < 6 * 3600_000L) {
+                return
+            }
+
+            ctx.applicationContext.dataStore.edit {
+                it[Prefs.KEY_ALERT_LAST] = "$type|$now"
+            }
             val msg = when (type) {
                 "storm" -> if (lang == "fa") "رعدوبرق در راه است ⛈️" else "Thunderstorm on the way ⛈️"
                 "snow" -> if (lang == "fa") "بارش برف در راه است ❄️" else "Snow on the way ❄️"

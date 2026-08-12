@@ -1,23 +1,10 @@
 package com.iliyateam.aseman.ui
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.widget.Toast
-import com.iliyateam.aseman.cityDisplayName
-import com.iliyateam.aseman.formatDateTime
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.graphics.drawscope.Stroke
-import com.iliyateam.aseman.data.AirCurrent
-import com.iliyateam.aseman.HourItem
-
-import androidx.compose.ui.graphics.nativeCanvas
-import com.iliyateam.aseman.aqiInfo
-import com.iliyateam.aseman.clockOf
-import com.iliyateam.aseman.dayLabel
-import com.iliyateam.aseman.timeMinutes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Speed
@@ -45,7 +31,6 @@ import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,22 +40,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.iliyateam.aseman.HourItem
 import com.iliyateam.aseman.Prefs
 import com.iliyateam.aseman.WeatherViewModel
+import com.iliyateam.aseman.aqiInfo
+import com.iliyateam.aseman.cityDisplayName
+import com.iliyateam.aseman.clockOf
+import com.iliyateam.aseman.data.AirCurrent
+import com.iliyateam.aseman.dayLabel
 import com.iliyateam.aseman.descOf
 import com.iliyateam.aseman.faDigits
+import com.iliyateam.aseman.formatDateTime
 import com.iliyateam.aseman.next24
 import com.iliyateam.aseman.t
+import com.iliyateam.aseman.timeMinutes
 import com.iliyateam.aseman.weatherIcon
 import java.util.Locale
 
@@ -147,6 +141,9 @@ private fun WeatherBody(
     ctx: Context
 ) {
     val d = s.data
+    val nextHours = remember(d) {
+        next24(d)
+    }
     val favs by vm.favs.collectAsState()
 
     val key = { a: Double, b: Double ->
@@ -273,7 +270,7 @@ private fun WeatherBody(
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(next24(d)) { h ->
+                items(nextHours) { h ->
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainer
@@ -421,7 +418,7 @@ private fun WeatherBody(
         }
 
         item {
-            TempChart(next24(d), prefs)
+            TempChart(nextHours, prefs)
         }
 
         item {
@@ -751,32 +748,18 @@ private fun TempChart(
                 }
 
                 for (i in 1 until hours.size) {
-                    for (st in 0..24) {
-
-                        val t = st.toFloat() / 24
-
-                        val x =
-                            px(i - 1) +
-                                    (px(i) - px(i - 1)) *
-                                    t
-
-                        val y =
-                            py(temps[i - 1]) +
-                                    (py(temps[i]) -
-                                            py(temps[i - 1])) *
-                                    t
-
-                        drawCircle(
-                            androidx.compose.ui.graphics.Color(
-                                0xFFFFC107
-                            ),
-                            3f,
-                            androidx.compose.ui.geometry.Offset(
-                                x,
-                                y
-                            )
-                        )
-                    }
+                    drawLine(
+                        androidx.compose.ui.graphics.Color(0xFFFFC107),
+                        start = androidx.compose.ui.geometry.Offset(
+                            px(i - 1),
+                            py(temps[i - 1])
+                        ),
+                        end = androidx.compose.ui.geometry.Offset(
+                            px(i),
+                            py(temps[i])
+                        ),
+                        strokeWidth = 4f
+                    )
                 }
 
                 hours.forEachIndexed { i, hh ->

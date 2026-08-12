@@ -28,7 +28,7 @@ class RefreshService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createChannel()
         try {
-            startForeground(101, placeholder())
+            startForeground(100, placeholder())
         } catch (_: Exception) { }
         scope.launch {
             try {
