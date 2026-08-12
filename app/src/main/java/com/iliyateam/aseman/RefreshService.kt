@@ -6,15 +6,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Rect
+
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import androidx.core.graphics.drawable.IconCompat
-import androidx.datastore.preferences.core.edit
+
 import com.iliyateam.aseman.data.WeatherApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +33,9 @@ class RefreshService : Service() {
         scope.launch {
             try {
                 val pd = applicationContext.dataStore.data.first()
-                val saved = pd[Prefs.KEY_NOTIF_CITY] ?: pd[Prefs.KEY_LAST]
+                val saved = pd[Prefs.KEY_NOTIF_CITY]
+                    ?.takeIf { it.isNotBlank() }
+                    ?: pd[Prefs.KEY_LAST]
                 val lang = pd[Prefs.KEY_LANG] ?: "fa"
                 val p = saved?.split("|")
                 if (p != null && p.size == 3) {
@@ -45,7 +43,7 @@ class RefreshService : Service() {
                     val windUnit = pd[Prefs.KEY_UWIND] ?: "kmh"
                     val w = WeatherApi.instance.getWeather(
                         p[0].toDouble(), p[1].toDouble(),
-                        timezone = "UTC",
+                        timezone = "auto",
                         temperatureUnit = tempUnit,
                         windSpeedUnit = windUnit
                     )
@@ -78,8 +76,15 @@ class RefreshService : Service() {
 
                     refreshWidgets()
                 }
-            } catch (_: Exception) { }
-            stopSelf()
+            } catch (_: Exception) {
+            } finally {
+                getSharedPreferences("widget", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("refresh_in_progress", false)
+                    .apply()
+
+                stopSelf()
+            }
         }
         return START_NOT_STICKY
     }
@@ -108,22 +113,10 @@ class RefreshService : Service() {
             .setSilent(true)
             .build()
 
-    private fun emojiIcon(emoji: String): IconCompat {
-        val size = 96
-        val b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val cv = Canvas(b)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        p.textSize = 72f
-        p.textAlign = Paint.Align.CENTER
-        val r = Rect()
-        p.getTextBounds(emoji, 0, emoji.length, r)
-        cv.drawText(emoji, size / 2f, size / 2f - r.exactCenterY(), p)
-        return IconCompat.createWithBitmap(b)
-    }
 
     private fun buildNotification(text: String, city: String, emoji: String) =
         NotificationCompat.Builder(this, "weather")
-            .setSmallIcon(emojiIcon(emoji))
+            .setSmallIcon(R.drawable.aseman_icon)
             .setContentTitle(city.ifBlank { "آسمان" })
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

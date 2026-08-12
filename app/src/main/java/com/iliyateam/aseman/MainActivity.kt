@@ -139,9 +139,7 @@ fun Root() {
 
         RefreshScheduler.schedule(ctx)
     }
-    LaunchedEffect(prefs.refresh) {
-        RefreshScheduler.schedule(ctx)
-    }
+
 
     /* با تغییر واحد دما/باد، نوتیفیکیشن و ویجت همان لحظه نو می‌شوند */
     LaunchedEffect(prefs.uTemp, prefs.uWind) {

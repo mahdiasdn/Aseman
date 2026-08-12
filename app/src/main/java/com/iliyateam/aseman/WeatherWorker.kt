@@ -12,6 +12,8 @@ import android.graphics.Rect
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
+import java.io.IOException
+import retrofit2.HttpException
 import androidx.datastore.preferences.core.edit
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -40,7 +42,10 @@ class WeatherWorker(
     override suspend fun doWork(): Result {
         return try {
             val pd = ctx.applicationContext.dataStore.data.first()
-            val saved = pd[Prefs.KEY_NOTIF_CITY] ?: pd[Prefs.KEY_LAST] ?: return Result.success()
+            val saved = pd[Prefs.KEY_NOTIF_CITY]
+                ?.takeIf { it.isNotBlank() }
+                ?: pd[Prefs.KEY_LAST]
+                ?: return Result.success()
             val lang = pd[Prefs.KEY_LANG] ?: "fa"
             val p = saved.split("|")
             if (p.size < 3) return Result.success()
@@ -51,7 +56,7 @@ class WeatherWorker(
             val w = WeatherApi.instance.getWeather(
                 p[0].toDouble(),
                 p[1].toDouble(),
-                timezone = "UTC",
+                timezone = "auto",
                 temperatureUnit = tempUnit,
                 windSpeedUnit = windUnit
             )
@@ -90,9 +95,22 @@ class WeatherWorker(
             Result.success()
         } catch (e: Exception) {
             ctx.getSharedPreferences("widget", Context.MODE_PRIVATE).edit()
-                .putString("last_error", "${e.javaClass.simpleName}: ${e.message}").apply()
+                .putString("last_error", "${e.javaClass.simpleName}: ${e.message}")
+                .apply()
+
             refreshWidgets()
-            Result.retry()
+
+            when {
+                e is IOException -> Result.retry()
+
+                e is HttpException && (
+                        e.code() == 408 ||
+                                e.code() == 429 ||
+                                e.code() >= 500
+                        ) -> Result.retry()
+
+                else -> Result.failure()
+            }
         }
     }
 
@@ -145,8 +163,10 @@ class WeatherWorker(
         try {
             /* ساعت فعلی به UTC — هم‌راستا با hourly که با timezone=UTC گرفته شده */
             val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:00", java.util.Locale.US)
-            fmt.timeZone = java.util.TimeZone.getTimeZone("UTC")
-            val nowHour = fmt.format(java.util.Date())
+            val nowHour = java.text.SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:00",
+                java.util.Locale.US
+            ).format(java.util.Date())
 
             val idx = maxOf(0, w.hourly.time.indexOf(nowHour))
             val next = w.hourly.code.subList(idx, minOf(w.hourly.code.size, idx + 3))

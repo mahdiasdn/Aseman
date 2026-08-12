@@ -6,19 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import androidx.work.BackoffPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import java.util.concurrent.TimeUnit
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
-import androidx.work.WorkManager
-import android.os.Handler
-import android.os.Looper
 import android.widget.RemoteViews
-import androidx.core.content.ContextCompat
 
 class WeatherWidgetProvider : AppWidgetProvider() {
 
@@ -33,6 +21,12 @@ class WeatherWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_REFRESH) {
+            val sp = context.getSharedPreferences("widget", Context.MODE_PRIVATE)
+
+            if (sp.getBoolean("refresh_in_progress", false)) return
+
+            sp.edit().putBoolean("refresh_in_progress", true).apply()
+
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, WeatherWidgetProvider::class.java))
 
@@ -42,9 +36,18 @@ class WeatherWidgetProvider : AppWidgetProvider() {
 
             try {
                 androidx.core.content.ContextCompat.startForegroundService(
-                    context, Intent(context, RefreshService::class.java)
+                    context,
+                    Intent(context, RefreshService::class.java)
                 )
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+                sp.edit()
+                    .putBoolean("refresh_in_progress", false)
+                    .apply()
+
+                for (id in ids) {
+                    update(context, mgr, id, false)
+                }
+            }
 
 
         }

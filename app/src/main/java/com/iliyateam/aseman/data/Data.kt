@@ -5,6 +5,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
+import java.util.concurrent.TimeUnit
 
 data class WeatherResponse(
     @SerializedName("current") val current: Current,
@@ -72,8 +73,15 @@ interface WeatherApi {
 
     companion object {
         val instance: WeatherApi by lazy {
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(12, TimeUnit.SECONDS)
+                .writeTimeout(12, TimeUnit.SECONDS)
+                .build()
+
             Retrofit.Builder()
                 .baseUrl("https://api.open-meteo.com/")
+                .client(client)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(WeatherApi::class.java)
@@ -100,8 +108,15 @@ interface AirApi {
 
     companion object {
         val instance: AirApi by lazy {
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(12, TimeUnit.SECONDS)
+                .writeTimeout(12, TimeUnit.SECONDS)
+                .build()
+
             Retrofit.Builder()
                 .baseUrl("https://air-quality-api.open-meteo.com/")
+                .client(client)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(AirApi::class.java)

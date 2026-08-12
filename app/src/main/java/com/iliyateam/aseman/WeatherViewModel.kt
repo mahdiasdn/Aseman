@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.gson.Gson
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeoutOrNull
 import com.iliyateam.aseman.data.GeoResult
@@ -64,17 +65,45 @@ class WeatherViewModel : ViewModel() {
 
     fun load(lat: Double, lon: Double, city: String, silent: Boolean = false) {
         last = Triple(lat, lon, city)
+
+        if (silent && loadJob?.isActive == true) return
+
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             if (!silent) _state.value = State.Loading
             try {
-                val w = WeatherApi.instance.getWeather(
-                    lat, lon,
-                    temperatureUnit = if (prefs?.uTemp == "f") "fahrenheit" else "celsius",
-                    windSpeedUnit = when (prefs?.uWind) { "ms" -> "ms"; "mph" -> "mph"; else -> "kmh" }
+                val weatherDeferred = async {
+                    WeatherApi.instance.getWeather(
+                        lat,
+                        lon,
+                        temperatureUnit = if (prefs?.uTemp == "f") "fahrenheit" else "celsius",
+                        windSpeedUnit = when (prefs?.uWind) {
+                            "ms" -> "ms"
+                            "mph" -> "mph"
+                            else -> "kmh"
+                        }
+                    )
+                }
+
+                val airDeferred = async {
+                    try {
+                        AirApi.instance.getAir(lat, lon).current
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
+                val w = weatherDeferred.await()
+                val air = airDeferred.await()
+
+                _state.value = State.Success(
+                    w,
+                    city,
+                    lat,
+                    lon,
+                    System.currentTimeMillis(),
+                    air
                 )
-                val air = try { AirApi.instance.getAir(lat, lon).current } catch (e: Exception) { null }
-                _state.value = State.Success(w, city, lat, lon, System.currentTimeMillis(), air)
                 appCtx?.dataStore?.edit {
                     it[Prefs.KEY_LAST] = "$lat|$lon|$city"
                     it[Prefs.KEY_CACHE] = Gson().toJson(CacheBundle(city, lat, lon, w, air))
@@ -85,8 +114,20 @@ class WeatherViewModel : ViewModel() {
                 val b = cached?.let {
                     try { Gson().fromJson(it, CacheBundle::class.java) } catch (_: Exception) { null }
                 }
-                if (b != null && b.city == city) {
-                    _state.value = State.Success(b.weather, b.city, b.lat, b.lon, System.currentTimeMillis(), b.air)
+                if (
+                    b != null &&
+                    b.city == city &&
+                    kotlin.math.abs(b.lat - lat) < 0.01 &&
+                    kotlin.math.abs(b.lon - lon) < 0.01
+                ) {
+                    _state.value = State.Success(
+                        b.weather,
+                        b.city,
+                        b.lat,
+                        b.lon,
+                        System.currentTimeMillis(),
+                        b.air
+                    )
                 } else {
                     _state.value = State.Error(prefs?.t("net_err") ?: "خطا در دریافت اطلاعات")
                 }
@@ -112,8 +153,14 @@ class WeatherViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 var l = fused.lastLocation.await()
+
                 if (l == null) {
-                    l = fused.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                    l = withTimeoutOrNull(10_000L) {
+                        fused.getCurrentLocation(
+                            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                            null
+                        ).await()
+                    }
                 }
                 if (l != null) load(l.latitude, l.longitude, prefs?.t("my_location") ?: "موقعیت من")
                 else onFail(prefs?.t("gps_err") ?: "دسترسی به موقعیت ممکن نیست")
