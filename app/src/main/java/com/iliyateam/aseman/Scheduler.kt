@@ -1,3 +1,4 @@
+
 package com.iliyateam.aseman
 
 import android.content.Context
@@ -7,29 +8,50 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.flow.first
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 object RefreshScheduler {
+
     private const val WORK = "aseman_refresh"
 
+    suspend fun schedule(
+        ctx: Context,
+        refreshMinutes: Int? = null
+    ) {
+        val appContext = ctx.applicationContext
+        val wm = WorkManager.getInstance(appContext)
 
-    suspend fun schedule(ctx: Context) {
-        val pd = ctx.applicationContext.dataStore.data.first()
-        val mins = (pd[Prefs.KEY_REFRESH] ?: "30").toIntOrNull() ?: 30
-        val wm = WorkManager.getInstance(ctx)
+        val mins = refreshMinutes ?: run {
+            val pd = appContext.dataStore.data.first()
+            pd[Prefs.KEY_REFRESH]
+                ?.toIntOrNull()
+                ?: 30
+        }
+
         if (mins <= 0) {
             wm.cancelUniqueWork(WORK)
             return
         }
-        val req = PeriodicWorkRequestBuilder<WeatherWorker>(
-            maxOf(15, mins).toLong(), TimeUnit.MINUTES
+
+        val interval = maxOf(15, mins)
+
+        val request = PeriodicWorkRequestBuilder<WeatherWorker>(
+            Duration.ofMinutes(interval.toLong())
         )
             .setConstraints(
                 Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiredNetworkType(
+                        NetworkType.CONNECTED
+                    )
                     .build()
             )
             .build()
-        wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, req)
+
+        wm.enqueueUniquePeriodicWork(
+            WORK,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
     }
 }
+

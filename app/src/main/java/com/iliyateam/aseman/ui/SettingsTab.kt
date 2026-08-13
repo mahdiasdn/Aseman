@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.outlined.Info
 import com.iliyateam.aseman.openMyket
+import com.iliyateam.aseman.BuildConfig
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material.icons.outlined.LocationCity
 import com.iliyateam.aseman.CityDb
@@ -177,32 +178,62 @@ fun SettingsScreen(prefs: Prefs, pad: PaddingValues) {
 
     if (cityDialog) {
         AlertDialog(
-            onDismissRequest = { cityDialog = false },
-            title = { Text(prefs.t("notif_city"), fontWeight = FontWeight.Bold) },
+            onDismissRequest = {
+                cityDialog = false
+            },
+            title = {
+                Text(
+                    prefs.t("notif_city"),
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
                 Column {
+
                     OutlinedTextField(
                         value = cityQuery,
-                        onValueChange = { cityQuery = it },
+                        onValueChange = {
+                            cityQuery = it
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Column(Modifier.verticalScroll(rememberScrollState())) {
-                        CityDb.search(cityQuery).forEach { c ->
+
+                    Column(
+                        Modifier.verticalScroll(
+                            rememberScrollState()
+                        )
+                    ) {
+
+                        CityDb.search(
+                            ctx,
+                            cityQuery
+                        ).forEach { c ->
+
                             Surface(
                                 onClick = {
-                                    prefs.changeNotifCity("${c.lat}|${c.lon}|${c.fa}")
+                                    prefs.changeNotifCity(
+                                        "${c.lat}|${c.lon}|${c.fa}"
+                                    )
                                     cityDialog = false
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    if (prefs.lang == "fa") c.fa else c.en,
+                                    if (prefs.lang == "fa") {
+                                        c.fa
+                                    } else {
+                                        c.en
+                                    },
                                     Modifier.padding(12.dp)
                                 )
                             }
                         }
+
                         Surface(
-                            onClick = { prefs.changeNotifCity(""); cityDialog = false },
+                            onClick = {
+                                prefs.changeNotifCity("")
+                                cityDialog = false
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
@@ -214,7 +245,7 @@ fun SettingsScreen(prefs: Prefs, pad: PaddingValues) {
                     }
                 }
             },
-            confirmButton = { }
+            confirmButton = {}
         )
     }
     if (aboutDialog) AboutDialog(prefs) { aboutDialog = false }
@@ -389,7 +420,10 @@ fun AboutDialog(prefs: Prefs, onDismiss: () -> Unit) {
         title = { Text("آسمان ☁️", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("${prefs.t("version")} 1.2", fontWeight = FontWeight.Bold)
+                Text(
+                    "${prefs.t("version")} ${BuildConfig.VERSION_NAME}",
+                    fontWeight = FontWeight.Bold
+                )
                 Text("${prefs.t("developer")}: [MightyMahdi]")
                 Text(
                     prefs.t("editor_line"),

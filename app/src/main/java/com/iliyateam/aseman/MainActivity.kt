@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-
+import androidx.work.workDataOf
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
@@ -79,6 +79,7 @@ import com.iliyateam.aseman.ui.WeatherTab
 import com.iliyateam.aseman.ui.theme.AsanTheme
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -113,29 +114,36 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Root() {
-
     val ctx = LocalContext.current
+    val prefs = remember { Prefs(ctx) }
+    val scope = rememberCoroutineScope()
 
-    val prefs = remember {
-        Prefs(ctx)
+    var loadedLang by remember {
+        mutableStateOf<String?>(null)
     }
 
     val notifPerm = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
 
-        if (granted || Build.VERSION.SDK_INT < 33) {
-            try {
-                ContextCompat.startForegroundService(
-                    ctx,
-                    Intent(ctx, RefreshService::class.java)
-                )
-            } catch (_: Exception) {
+        if (!granted) return@rememberLauncherForActivityResult
+
+        scope.launch {
+            if (hasRefreshCity(ctx)) {
+                startRefreshService(ctx)
             }
         }
     }
 
     LaunchedEffect(Unit) {
+        prefs.load()
+        loadedLang = prefs.lang
+        RefreshScheduler.schedule(ctx)
+
+        val hasCity = hasRefreshCity(ctx)
+
+        if (!hasCity) return@LaunchedEffect
+
         if (
             Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(
@@ -147,24 +155,8 @@ fun Root() {
                 Manifest.permission.POST_NOTIFICATIONS
             )
         } else {
-            try {
-                ContextCompat.startForegroundService(
-                    ctx,
-                    Intent(ctx, RefreshService::class.java)
-                )
-            } catch (_: Exception) {
-            }
+            startRefreshService(ctx)
         }
-    }
-
-    var loadedLang by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    LaunchedEffect(Unit) {
-        prefs.load()
-        loadedLang = prefs.lang
-        RefreshScheduler.schedule(ctx)
     }
 
     LaunchedEffect(prefs.lang, loadedLang) {
@@ -181,16 +173,18 @@ fun Root() {
         RefreshScheduler.schedule(ctx)
     }
 
-    /*
-     * با تغییر واحد دما/باد،
-     * نوتیفیکیشن و ویجت همان لحظه به‌روزرسانی می‌شوند.
-     */
-    LaunchedEffect(prefs.uTemp, prefs.uWind) {
 
+    LaunchedEffect(prefs.uTemp, prefs.uWind) {
         WorkManager.getInstance(ctx).enqueueUniqueWork(
             "aseman_now",
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<WeatherWorker>()
+                .setInputData(
+                    workDataOf(
+                        WeatherWorker.KEY_TEMP_UNIT to prefs.uTemp,
+                        WeatherWorker.KEY_WIND_UNIT to prefs.uWind
+                    )
+                )
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(
@@ -203,23 +197,44 @@ fun Root() {
     }
 
     CompositionLocalProvider(
-
         LocalDensity provides Density(
             LocalDensity.current.density,
             prefs.fontScale
         ),
-
-        LocalLayoutDirection provides
-                if (prefs.lang == "fa") {
-                    LayoutDirection.Rtl
-                } else {
-                    LayoutDirection.Ltr
-                }
-
+        LocalLayoutDirection provides if (prefs.lang == "fa") {
+            LayoutDirection.Rtl
+        } else {
+            LayoutDirection.Ltr
+        }
     ) {
         AsanTheme(prefs) {
             MainScaffold(prefs)
         }
+    }
+}
+
+private suspend fun hasRefreshCity(ctx: android.content.Context): Boolean {
+    val data = ctx.applicationContext
+        .dataStore
+        .data
+        .first()
+
+    val notifCity = data[Prefs.KEY_NOTIF_CITY]
+        ?.takeIf { it.isNotBlank() }
+
+    val mainCity = data[Prefs.KEY_LAST]
+        ?.takeIf { it.isNotBlank() }
+
+    return notifCity != null || mainCity != null
+}
+
+private fun startRefreshService(ctx: android.content.Context) {
+    try {
+        ContextCompat.startForegroundService(
+            ctx,
+            Intent(ctx, RefreshService::class.java)
+        )
+    } catch (_: Exception) {
     }
 }
 
@@ -231,7 +246,6 @@ fun Root() {
 fun MainScaffold(prefs: Prefs) {
 
     val ctx = LocalContext.current
-
     val vm: WeatherViewModel = viewModel()
 
     val drawerState = rememberDrawerState(
@@ -254,9 +268,7 @@ fun MainScaffold(prefs: Prefs) {
         ) { res ->
 
             if (res.values.all { it }) {
-
                 vm.useGps(ctx) { msg ->
-
                     android.widget.Toast.makeText(
                         ctx,
                         msg,
@@ -267,13 +279,10 @@ fun MainScaffold(prefs: Prefs) {
         }
 
     ModalNavigationDrawer(
-
         drawerState = drawerState,
-
         gesturesEnabled = true,
 
         drawerContent = {
-
             ModalDrawerSheet {
 
                 Text(
@@ -282,153 +291,110 @@ fun MainScaffold(prefs: Prefs) {
                     } else {
                         "Aseman"
                     },
-
                     modifier = Modifier.padding(24.dp),
-
                     style = androidx.compose.material3.MaterialTheme
                         .typography
                         .headlineSmall,
-
                     fontWeight = FontWeight.Bold
                 )
 
                 NavigationDrawerItem(
-
                     icon = {
                         Icon(
                             Icons.Filled.WbSunny,
                             null
                         )
                     },
-
                     label = {
                         Text(
                             prefs.t("tab_weather")
                         )
                     },
-
-                    selected =
-                        pagerState.currentPage == 0,
-
+                    selected = pagerState.currentPage == 0,
                     onClick = {
-
                         scope.launch {
-
                             drawerState.close()
-
-                            pagerState.animateScrollToPage(
-                                0
-                            )
+                            pagerState.animateScrollToPage(0)
                         }
                     }
                 )
 
                 NavigationDrawerItem(
-
                     icon = {
                         Icon(
                             Icons.Filled.LocationCity,
                             null
                         )
                     },
-
                     label = {
                         Text(
                             prefs.t("tab_cities")
                         )
                     },
-
-                    selected =
-                        pagerState.currentPage == 1,
-
+                    selected = pagerState.currentPage == 1,
                     onClick = {
-
                         scope.launch {
-
                             drawerState.close()
-
-                            pagerState.animateScrollToPage(
-                                1
-                            )
+                            pagerState.animateScrollToPage(1)
                         }
                     }
                 )
 
                 NavigationDrawerItem(
-
                     icon = {
                         Icon(
                             Icons.Filled.Settings,
                             null
                         )
                     },
-
                     label = {
                         Text(
                             prefs.t("tab_settings")
                         )
                     },
-
-                    selected =
-                        pagerState.currentPage == 2,
-
+                    selected = pagerState.currentPage == 2,
                     onClick = {
-
                         scope.launch {
-
                             drawerState.close()
-
-                            pagerState.animateScrollToPage(
-                                2
-                            )
+                            pagerState.animateScrollToPage(2)
                         }
                     }
                 )
 
                 NavigationDrawerItem(
-
                     icon = {
                         Icon(
                             Icons.Filled.Info,
                             null
                         )
                     },
-
                     label = {
                         Text(
                             prefs.t("about_app")
                         )
                     },
-
                     selected = false,
-
                     onClick = {
-
                         scope.launch {
                             drawerState.close()
                         }
-
                         showAboutDialog = true
                     }
                 )
 
                 NavigationDrawerItem(
-
                     icon = {
                         Icon(
                             Icons.AutoMirrored.Filled.ExitToApp,
                             null
                         )
                     },
-
                     label = {
                         Text(
                             prefs.t("exit")
                         )
                     },
-
                     selected = false,
-
                     onClick = {
                         (ctx as? ComponentActivity)?.finish()
                     }
@@ -440,37 +406,27 @@ fun MainScaffold(prefs: Prefs) {
         Scaffold(
 
             topBar = {
-
                 TopAppBar(
 
                     title = {
-
                         Text(
-
                             if (prefs.lang == "fa") {
                                 "آسمان"
                             } else {
                                 "Aseman"
                             },
-
-                            fontWeight =
-                                FontWeight.Bold
+                            fontWeight = FontWeight.Bold
                         )
                     },
 
                     navigationIcon = {
-
                         IconButton(
-
                             onClick = {
-
                                 scope.launch {
                                     drawerState.open()
                                 }
                             }
-
                         ) {
-
                             Icon(
                                 Icons.Filled.Menu,
                                 contentDescription = "منو"
@@ -481,7 +437,6 @@ fun MainScaffold(prefs: Prefs) {
                     actions = {
 
                         IconButton(
-
                             onClick = {
 
                                 if (
@@ -493,7 +448,6 @@ fun MainScaffold(prefs: Prefs) {
                                 ) {
 
                                     vm.useGps(ctx) { msg ->
-
                                         android.widget.Toast.makeText(
                                             ctx,
                                             msg,
@@ -504,38 +458,28 @@ fun MainScaffold(prefs: Prefs) {
                                 } else {
 
                                     gpsPerm.launch(
-
                                         arrayOf(
-
                                             Manifest.permission.ACCESS_FINE_LOCATION,
-
                                             Manifest.permission.ACCESS_COARSE_LOCATION
                                         )
                                     )
                                 }
                             }
                         ) {
-
                             Icon(
-
                                 Icons.Filled.MyLocation,
-
                                 contentDescription =
                                     prefs.t("my_location")
                             )
                         }
 
                         IconButton(
-
                             onClick = {
                                 vm.retry()
                             }
                         ) {
-
                             Icon(
-
                                 Icons.Outlined.Refresh,
-
                                 contentDescription =
                                     prefs.t("retry")
                             )
@@ -549,30 +493,20 @@ fun MainScaffold(prefs: Prefs) {
                 NavigationBar {
 
                     NavigationBarItem(
-
                         selected =
                             pagerState.currentPage == 0,
-
                         onClick = {
-
                             scope.launch {
-
-                                pagerState.animateScrollToPage(
-                                    0
-                                )
+                                pagerState.animateScrollToPage(0)
                             }
                         },
-
                         icon = {
-
                             Icon(
                                 Icons.Outlined.WbSunny,
                                 null
                             )
                         },
-
                         label = {
-
                             Text(
                                 prefs.t("tab_weather")
                             )
@@ -580,30 +514,20 @@ fun MainScaffold(prefs: Prefs) {
                     )
 
                     NavigationBarItem(
-
                         selected =
                             pagerState.currentPage == 1,
-
                         onClick = {
-
                             scope.launch {
-
-                                pagerState.animateScrollToPage(
-                                    1
-                                )
+                                pagerState.animateScrollToPage(1)
                             }
                         },
-
                         icon = {
-
                             Icon(
                                 Icons.Outlined.Cloud,
                                 null
                             )
                         },
-
                         label = {
-
                             Text(
                                 prefs.t("tab_cities")
                             )
@@ -611,30 +535,20 @@ fun MainScaffold(prefs: Prefs) {
                     )
 
                     NavigationBarItem(
-
                         selected =
                             pagerState.currentPage == 2,
-
                         onClick = {
-
                             scope.launch {
-
-                                pagerState.animateScrollToPage(
-                                    2
-                                )
+                                pagerState.animateScrollToPage(2)
                             }
                         },
-
                         icon = {
-
                             Icon(
                                 Icons.Outlined.Speed,
                                 null
                             )
                         },
-
                         label = {
-
                             Text(
                                 prefs.t("tab_settings")
                             )
@@ -646,45 +560,31 @@ fun MainScaffold(prefs: Prefs) {
         ) { pad ->
 
             HorizontalPager(
-
                 state = pagerState,
-
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(pad)
-
             ) { page ->
 
                 when (page) {
 
                     0 -> WeatherTab(
-
                         prefs,
-
                         androidx.compose.foundation.layout.PaddingValues()
                     )
 
                     1 -> CitiesTab(
-
                         prefs,
-
                         androidx.compose.foundation.layout.PaddingValues(),
-
                         onCitySelected = {
-
                             scope.launch {
-
-                                pagerState.animateScrollToPage(
-                                    0
-                                )
+                                pagerState.animateScrollToPage(0)
                             }
                         }
                     )
 
                     else -> SettingsScreen(
-
                         prefs,
-
                         androidx.compose.foundation.layout.PaddingValues()
                     )
                 }
@@ -693,7 +593,6 @@ fun MainScaffold(prefs: Prefs) {
     }
 
     if (showAboutDialog) {
-
         AboutDialog(prefs) {
             showAboutDialog = false
         }
