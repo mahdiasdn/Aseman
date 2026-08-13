@@ -37,6 +37,7 @@ class WeatherWorker(
     params: WorkerParameters
 ) : CoroutineWorker(ctx, params) {
 
+
     companion object {
         const val KEY_TEMP_UNIT = "temp_unit"
         const val KEY_WIND_UNIT = "wind_unit"
@@ -64,7 +65,6 @@ class WeatherWorker(
 
     override suspend fun doWork(): Result {
         return try {
-
             val pd = ctx.applicationContext
                 .dataStore
                 .data
@@ -88,6 +88,25 @@ class WeatherWorker(
                 return Result.success()
             }
 
+            val lat = p[0].toDoubleOrNull()
+                ?: return Result.failure()
+
+            val lon = p[1].toDoubleOrNull()
+                ?: return Result.failure()
+
+            if (
+                !lat.isFinite() ||
+                !lon.isFinite() ||
+                lat !in -90.0..90.0 ||
+                lon !in -180.0..180.0
+            ) {
+                return Result.failure()
+            }
+
+            if (p[2].isBlank()) {
+                return Result.failure()
+            }
+
             val tempPref =
                 inputData.getString(KEY_TEMP_UNIT)
                     ?: pd[Prefs.KEY_UTEMP]
@@ -108,8 +127,8 @@ class WeatherWorker(
             val windUnit = windPref
 
             val w = WeatherApi.instance.getWeather(
-                p[0].toDouble(),
-                p[1].toDouble(),
+                lat,
+                lon,
                 timezone = "auto",
                 temperatureUnit = tempUnit,
                 windSpeedUnit = windUnit
@@ -123,7 +142,6 @@ class WeatherWorker(
             )
 
             val text = try {
-
                 val iso =
                     java.text.SimpleDateFormat(
                         "yyyy-MM-dd",
@@ -138,7 +156,6 @@ class WeatherWorker(
                         dayLabel(iso, false)
 
             } catch (_: Exception) {
-
                 "${c.temp.toInt()}° | " +
                         descOf(
                             c.code,
@@ -153,15 +170,10 @@ class WeatherWorker(
 
             createChannel()
 
-            /*
-             * اعلان معمولی فقط در صورتی ارسال می‌شود
-             * که کاربر اعلان‌های برنامه را فعال کرده باشد.
-             *
-             * Foreground Service همچنان می‌تواند اجرا شود؛
-             * فقط notification معمولی را post نمی‌کنیم.
-             */
-            if (!widgetOnly && notificationsEnabled()) {
-
+            if (
+                !widgetOnly &&
+                notificationsEnabled()
+            ) {
                 val nm =
                     ctx.getSystemService(
                         Context.NOTIFICATION_SERVICE
@@ -235,12 +247,11 @@ class WeatherWorker(
                 )
                 .apply()
 
-            refreshWidgets()
+            WidgetRenderer.refresh(ctx)
 
             Result.success()
 
         } catch (e: Exception) {
-
             ctx.getSharedPreferences(
                 "widget",
                 Context.MODE_PRIVATE
@@ -251,10 +262,9 @@ class WeatherWorker(
                 )
                 .apply()
 
-            refreshWidgets()
+            WidgetRenderer.refresh(ctx)
 
             when {
-
                 e is IOException ->
                     Result.retry()
 
@@ -269,21 +279,35 @@ class WeatherWorker(
                 else ->
                     Result.failure()
             }
+
+        } finally {
+            ctx.getSharedPreferences(
+                "widget",
+                Context.MODE_PRIVATE
+            ).edit()
+                .putBoolean(
+                    "refresh_in_progress",
+                    false
+                )
+                .apply()
         }
     }
 
     private fun notificationsEnabled(): Boolean {
-        if (!NotificationManagerCompat.from(ctx)
+        if (
+            !NotificationManagerCompat
+                .from(ctx)
                 .areNotificationsEnabled()
         ) {
             return false
         }
 
         return if (Build.VERSION.SDK_INT >= 33) {
-            androidx.core.app.ActivityCompat.checkSelfPermission(
-                ctx,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
+            androidx.core.app.ActivityCompat
+                .checkSelfPermission(
+                    ctx,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
         } else {
             true
         }
@@ -294,7 +318,6 @@ class WeatherWorker(
             Build.VERSION.SDK_INT >=
             Build.VERSION_CODES.O
         ) {
-
             val nm =
                 ctx.getSystemService(
                     Context.NOTIFICATION_SERVICE
@@ -323,7 +346,6 @@ class WeatherWorker(
     private fun emojiIcon(
         emoji: String
     ): IconCompat {
-
         val size = 96
 
         val b = Bitmap.createBitmap(
@@ -404,7 +426,6 @@ class WeatherWorker(
         lang: String
     ) {
         try {
-
             val currentTime =
                 parseWeatherTime(
                     w.current.time
@@ -431,7 +452,6 @@ class WeatherWorker(
 
             val type =
                 when {
-
                     next.any {
                         it in 95..99
                     } ->
@@ -490,7 +510,6 @@ class WeatherWorker(
 
             val msg =
                 when (type) {
-
                     "storm" ->
                         if (lang == "fa") {
                             "رعدوبرق در راه است ⛈️"
@@ -534,7 +553,6 @@ class WeatherWorker(
     private fun parseWeatherTime(
         value: String?
     ): LocalDateTime? {
-
         if (value.isNullOrBlank()) {
             return null
         }
@@ -554,9 +572,7 @@ class WeatherWorker(
         return try {
             LocalDateTime.parse(
                 normalized,
-                DateTimeFormatter.ofPattern(
-                    "yyyy-MM-dd'T'HH:mm"
-                )
+                WEATHER_TIME_FORMATTER
             )
         } catch (_: Exception) {
             null
@@ -567,12 +583,10 @@ class WeatherWorker(
         times: List<String>,
         currentTime: LocalDateTime
     ): Int {
-
         var bestIndex = -1
         var bestDistance = Long.MAX_VALUE
 
         for (i in times.indices) {
-
             val hour =
                 parseWeatherTime(
                     times[i]
@@ -619,216 +633,7 @@ class WeatherWorker(
             .setAutoCancel(true)
             .build()
 
-    private fun refreshWidgets() {
 
-        try {
-
-            val mgr =
-                android.appwidget.AppWidgetManager
-                    .getInstance(ctx)
-
-            val ids =
-                mgr.getAppWidgetIds(
-                    android.content.ComponentName(
-                        ctx,
-                        WeatherWidgetProvider::class.java
-                    )
-                )
-
-            if (ids.isEmpty()) {
-                return
-            }
-
-            val sp =
-                ctx.getSharedPreferences(
-                    "widget",
-                    Context.MODE_PRIVATE
-                )
-
-            val city =
-                sp.getString(
-                    "city",
-                    "آسمان"
-                ) ?: "آسمان"
-
-            val line =
-                sp.getString(
-                    "line",
-                    "…"
-                ) ?: "…"
-
-            val emoji =
-                sp.getString(
-                    "emoji",
-                    "☁️"
-                ) ?: "☁️"
-
-            val updatedAt =
-                sp.getLong(
-                    "updated_at",
-                    0L
-                )
-
-            val dark =
-                sp.getString(
-                    "dark",
-                    "1"
-                ) == "1"
-
-            val solid =
-                sp.getString(
-                    "bg",
-                    "trans"
-                ) == "solid"
-
-            val updatedText =
-                if (updatedAt == 0L) {
-                    "—"
-                } else {
-
-                    val clock =
-                        java.text.SimpleDateFormat(
-                            "HH:mm",
-                            java.util.Locale.US
-                        ).format(
-                            java.util.Date(
-                                updatedAt
-                            )
-                        )
-
-                    "بروزرسانی: $clock"
-                }
-
-            val refreshIntent =
-                PendingIntent.getBroadcast(
-                    ctx,
-                    1,
-                    Intent(
-                        ctx,
-                        WeatherWidgetProvider::class.java
-                    ).setAction(
-                        WeatherWidgetProvider.ACTION_REFRESH
-                    ),
-                    PendingIntent.FLAG_IMMUTABLE
-                )
-
-            val openIntent =
-                PendingIntent.getActivity(
-                    ctx,
-                    0,
-                    Intent(
-                        ctx,
-                        MainActivity::class.java
-                    ),
-                    PendingIntent.FLAG_IMMUTABLE
-                )
-
-            for (id in ids) {
-
-                val views =
-                    android.widget.RemoteViews(
-                        ctx.packageName,
-                        R.layout.widget_weather
-                    ).apply {
-
-                        setInt(
-                            R.id.w_root,
-                            "setBackgroundResource",
-                            when {
-
-                                !solid ->
-                                    R.drawable.widget_bg
-
-                                dark ->
-                                    R.drawable.widget_bg_solid
-
-                                else ->
-                                    R.drawable.widget_bg_solid_light
-                            }
-                        )
-
-                        setTextColor(
-                            R.id.w_city,
-                            if (
-                                solid && !dark
-                            ) {
-                                0xFF212121.toInt()
-                            } else {
-                                0xFFFFFFFF.toInt()
-                            }
-                        )
-
-                        setTextColor(
-                            R.id.w_line,
-                            if (
-                                solid && !dark
-                            ) {
-                                0xFF616161.toInt()
-                            } else {
-                                0xFFE0E0E0.toInt()
-                            }
-                        )
-
-                        setTextColor(
-                            R.id.w_brand,
-                            if (
-                                solid && !dark
-                            ) {
-                                0xFF3E7CB1.toInt()
-                            } else {
-                                0xFF90CAF9.toInt()
-                            }
-                        )
-
-                        setTextColor(
-                            R.id.w_updated,
-                            if (
-                                solid && !dark
-                            ) {
-                                0xFF757575.toInt()
-                            } else {
-                                0xFFB0BEC5.toInt()
-                            }
-                        )
-
-                        setTextViewText(
-                            R.id.w_city,
-                            city
-                        )
-
-                        setTextViewText(
-                            R.id.w_line,
-                            line
-                        )
-
-                        setTextViewText(
-                            R.id.w_emoji,
-                            emoji
-                        )
-
-                        setTextViewText(
-                            R.id.w_updated,
-                            updatedText
-                        )
-
-                        setOnClickPendingIntent(
-                            R.id.w_root,
-                            openIntent
-                        )
-
-                        setOnClickPendingIntent(
-                            R.id.w_refresh,
-                            refreshIntent
-                        )
-                    }
-
-                mgr.updateAppWidget(
-                    id,
-                    views
-                )
-            }
-
-        } catch (_: Exception) {
-        }
-    }
 }
+
+

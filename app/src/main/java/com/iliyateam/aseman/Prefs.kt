@@ -13,15 +13,22 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 val Context.dataStore by preferencesDataStore(name = "settings")
 
-class Prefs(private val context: Context) {
+class Prefs(context: Context) {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val context =
+        context.applicationContext
+
+    private val scope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.IO
+        )
 
     var lang by mutableStateOf("fa"); private set
     var mode by mutableStateOf("auto"); private set
@@ -157,6 +164,10 @@ class Prefs(private val context: Context) {
             conf,
             res.displayMetrics
         )
+    }
+
+    fun close() {
+        scope.cancel()
     }
 
     companion object {

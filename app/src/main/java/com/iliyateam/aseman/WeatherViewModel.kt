@@ -24,6 +24,15 @@ import kotlinx.coroutines.tasks.await
 import java.util.Locale
 
 class WeatherViewModel : ViewModel() {
+    private fun isValidCoordinates(
+        lat: Double,
+        lon: Double
+    ): Boolean {
+        return lat.isFinite() &&
+                lon.isFinite() &&
+                lat in -90.0..90.0 &&
+                lon in -180.0..180.0
+    }
 
     sealed class State {
         data object Loading : State()
@@ -63,7 +72,28 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    fun load(lat: Double, lon: Double, city: String, silent: Boolean = false) {
+    fun load(
+        lat: Double,
+        lon: Double,
+        city: String,
+        silent: Boolean = false
+    ) {
+        if (!isValidCoordinates(lat, lon)) {
+            _state.value = State.Error(
+                prefs?.t("net_err")
+                    ?: "مختصات مکان نامعتبر است"
+            )
+            return
+        }
+
+        if (city.isBlank()) {
+            _state.value = State.Error(
+                prefs?.t("net_err")
+                    ?: "نام شهر نامعتبر است"
+            )
+            return
+        }
+
         last = Triple(lat, lon, city)
 
         if (silent && loadJob?.isActive == true) return
@@ -149,10 +179,13 @@ class WeatherViewModel : ViewModel() {
 
     @SuppressLint("MissingPermission")
     fun useGps(ctx: Context, onFail: (String) -> Unit) {
-        val fused = LocationServices.getFusedLocationProviderClient(ctx)
+        val fused =
+            LocationServices.getFusedLocationProviderClient(ctx)
+
         viewModelScope.launch {
             try {
-                var l = fused.lastLocation.await()
+                var l =
+                    fused.lastLocation.await()
 
                 if (l == null) {
                     l = withTimeoutOrNull(10_000L) {
@@ -162,10 +195,40 @@ class WeatherViewModel : ViewModel() {
                         ).await()
                     }
                 }
-                if (l != null) load(l.latitude, l.longitude, prefs?.t("my_location") ?: "موقعیت من")
-                else onFail(prefs?.t("gps_err") ?: "دسترسی به موقعیت ممکن نیست")
+
+                if (l == null) {
+                    onFail(
+                        prefs?.t("gps_err")
+                            ?: "دسترسی به موقعیت ممکن نیست"
+                    )
+                    return@launch
+                }
+
+                if (
+                    !isValidCoordinates(
+                        l.latitude,
+                        l.longitude
+                    )
+                ) {
+                    onFail(
+                        prefs?.t("gps_err")
+                            ?: "مختصات موقعیت نامعتبر است"
+                    )
+                    return@launch
+                }
+
+                load(
+                    l.latitude,
+                    l.longitude,
+                    prefs?.t("my_location")
+                        ?: "موقعیت من"
+                )
+
             } catch (e: Exception) {
-                onFail(prefs?.t("gps_err") ?: "دسترسی به موقعیت ممکن نیست")
+                onFail(
+                    prefs?.t("gps_err")
+                        ?: "دسترسی به موقعیت ممکن نیست"
+                )
             }
         }
     }
@@ -278,4 +341,5 @@ class WeatherViewModel : ViewModel() {
             } else null
         }
     }
+
 }

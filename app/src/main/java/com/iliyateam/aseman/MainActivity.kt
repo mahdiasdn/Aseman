@@ -5,7 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-
+import androidx.compose.runtime.DisposableEffect
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -117,6 +117,12 @@ fun Root() {
     val ctx = LocalContext.current
     val prefs = remember { Prefs(ctx) }
     val scope = rememberCoroutineScope()
+
+    DisposableEffect(prefs) {
+        onDispose {
+            prefs.close()
+        }
+    }
 
     var loadedLang by remember {
         mutableStateOf<String?>(null)
