@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 object RefreshScheduler {
     private const val WORK = "aseman_refresh"
 
-    /* ✅ P0: Off واقعاً Off است؛ 15/30/60 دقیقاً همان است */
+
     suspend fun schedule(ctx: Context) {
         val pd = ctx.applicationContext.dataStore.data.first()
         val mins = (pd[Prefs.KEY_REFRESH] ?: "30").toIntOrNull() ?: 30
