@@ -86,24 +86,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        if (Build.VERSION.SDK_INT >= 34) {
-            try {
-                val high = android.view.WindowManager::class.java
-                    .getField("FRAME_RATE_CATEGORY_HIGH")
-                    .getInt(null)
-
-                android.view.Window::class.java
-                    .getMethod(
-                        "setFrameRateCategory",
-                        Int::class.java
-                    )
-                    .invoke(window, high)
-
-            } catch (_: Exception) {
-            }
-        }
-
         enableEdgeToEdge()
 
         setContent {
@@ -131,9 +113,7 @@ fun Root() {
     val notifPerm = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-
         if (!granted) return@rememberLauncherForActivityResult
-
         scope.launch {
             if (hasRefreshCity(ctx)) {
                 startRefreshService(ctx)
@@ -148,8 +128,6 @@ fun Root() {
 
         val hasCity = hasRefreshCity(ctx)
 
-        if (!hasCity) return@LaunchedEffect
-
         if (
             Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(
@@ -160,7 +138,7 @@ fun Root() {
             notifPerm.launch(
                 Manifest.permission.POST_NOTIFICATIONS
             )
-        } else {
+        } else if (hasCity) {
             startRefreshService(ctx)
         }
     }
@@ -179,8 +157,13 @@ fun Root() {
         RefreshScheduler.schedule(ctx)
     }
 
+    var initialUnitsLoaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(prefs.uTemp, prefs.uWind) {
+        if (!initialUnitsLoaded) {
+            initialUnitsLoaded = true
+            return@LaunchedEffect
+        }
         WorkManager.getInstance(ctx).enqueueUniqueWork(
             "aseman_now",
             ExistingWorkPolicy.REPLACE,
@@ -567,6 +550,7 @@ fun MainScaffold(prefs: Prefs) {
 
             HorizontalPager(
                 state = pagerState,
+                beyondViewportPageCount = 1,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(pad)

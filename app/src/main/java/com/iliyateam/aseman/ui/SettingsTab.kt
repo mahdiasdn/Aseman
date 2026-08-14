@@ -164,7 +164,13 @@ fun SettingsScreen(
             when (prefs.refresh) {
                 "0" -> prefs.t("off")
                 "15" -> prefs.t("min15")
+                "30" -> prefs.t("min30")
                 "60" -> prefs.t("min60")
+                "120" -> prefs.t("min120")
+                "240" -> prefs.t("min240")
+                "360" -> prefs.t("min360")
+                "720" -> prefs.t("min720")
+                "1440" -> prefs.t("min1440")
                 else -> prefs.t("min30")
             }
         ) {
@@ -369,7 +375,12 @@ fun SettingsScreen(
                     "0" to prefs.t("off"),
                     "15" to prefs.t("min15"),
                     "30" to prefs.t("min30"),
-                    "60" to prefs.t("min60")
+                    "60" to prefs.t("min60"),
+                    "120" to prefs.t("min120"),
+                    "240" to prefs.t("min240"),
+                    "360" to prefs.t("min360"),
+                    "720" to prefs.t("min720"),
+                    "1440" to prefs.t("min1440")
                 ),
                 prefs.refresh,
                 {
@@ -382,9 +393,16 @@ fun SettingsScreen(
     }
 
     if (cityDialog) {
+        val cityList = if (cityQuery.isBlank()) {
+            CityDb.defaultCities(ctx)
+        } else {
+            CityDb.search(ctx, cityQuery)
+        }
+
         AlertDialog(
             onDismissRequest = {
                 cityDialog = false
+                cityQuery = ""
             },
             title = {
                 Text(
@@ -393,61 +411,70 @@ fun SettingsScreen(
                 )
             },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = cityQuery,
                         onValueChange = {
                             cityQuery = it
                         },
+                        placeholder = {
+                            Text(if (prefs.lang == "fa") "جستجوی شهر..." else "Search city...")
+                        },
+                        singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Column(
-                        Modifier.verticalScroll(
-                            rememberScrollState()
-                        )
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        CityDb.search(
-                            ctx,
-                            cityQuery
-                        ).forEach { c ->
-                            Surface(
-                                onClick = {
-                                    prefs.changeNotifCity(
-                                        "${c.lat}|${c.lon}|${c.fa}"
-                                    )
-                                    cityDialog = false
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    if (prefs.lang == "fa") {
-                                        c.fa
-                                    } else {
-                                        c.en
-                                    },
-                                    Modifier.padding(12.dp)
-                                )
-                            }
-                        }
-
                         Surface(
                             onClick = {
                                 prefs.changeNotifCity("")
                                 cityDialog = false
+                                cityQuery = ""
                             },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (prefs.notifCity.isEmpty()) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                prefs.t("follow_app"),
+                                "✦ " + prefs.t("follow_app"),
                                 Modifier.padding(12.dp),
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
+                        }
+
+                        cityList.forEach { c ->
+                            Surface(
+                                onClick = {
+                                    prefs.changeNotifCity("${c.lat}|${c.lon}|${c.fa}")
+                                    cityDialog = false
+                                    cityQuery = ""
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    if (prefs.lang == "fa") c.fa else c.en,
+                                    Modifier.padding(12.dp)
+                                )
+                            }
                         }
                     }
                 }
             },
-            confirmButton = {}
+            confirmButton = {
+                TextButton(onClick = {
+                    cityDialog = false
+                    cityQuery = ""
+                }) {
+                    Text(if (prefs.lang == "fa") "انصراف" else "Cancel")
+                }
+            }
         )
     }
 
@@ -591,46 +618,53 @@ private fun AccentDialog(
             )
         },
         text = {
-            Row(
-                horizontalArrangement =
-                    Arrangement.spacedBy(12.dp)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
             ) {
-                AccentDot(
-                    prefs,
-                    "auto",
-                    0
-                )
-
-
-                AccentDot(
-                    prefs,
-                    "green",
-                    0xFF4E9440
-                )
-
-                AccentDot(
-                    prefs,
-                    "purple",
-                    0xFF7B61C4
-                )
-
-                AccentDot(
-                    prefs,
-                    "orange",
-                    0xFFC4661F
-                )
-
-                AccentDot(
-                    prefs,
-                    "blue",
-                    0xFF3E7CB1
-                )
-
-                AccentDot(
-                    prefs,
-                    "pink",
-                    0xFFC14E82
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AccentDot(
+                        prefs,
+                        "auto",
+                        0
+                    )
+                    AccentDot(
+                        prefs,
+                        "green",
+                        0xFF4E9440
+                    )
+                    AccentDot(
+                        prefs,
+                        "purple",
+                        0xFF7B61C4
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AccentDot(
+                        prefs,
+                        "orange",
+                        0xFFC4661F
+                    )
+                    AccentDot(
+                        prefs,
+                        "blue",
+                        0xFF3E7CB1
+                    )
+                    AccentDot(
+                        prefs,
+                        "pink",
+                        0xFFC14E82
+                    )
+                }
             }
         },
         confirmButton = {

@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,8 +86,9 @@ fun WeatherTimeline(
             dataCount
         )
 
-    val visibleIndices =
+    val visibleIndices = remember(data) {
         (startIndex until endIndex).toList()
+    }
 
     if (visibleIndices.isEmpty()) return
 
@@ -193,14 +196,10 @@ fun WeatherTimeline(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(
+                itemsIndexed(
                     items = visibleIndices,
-                    key = { it }
-                ) { actualIndex ->
-
-                    val position =
-                        visibleIndices.indexOf(actualIndex)
-
+                    key = { _, actualIndex -> actualIndex }
+                ) { position, actualIndex ->
                     val selected =
                         position == safePosition
 
@@ -212,7 +211,8 @@ fun WeatherTimeline(
 
                     Surface(
                         modifier = Modifier
-                            .width(70.dp)
+                            .width(72.dp)
+                            .height(125.dp)
                             .clickable {
                                 selectedPosition = position
                             },
@@ -225,12 +225,16 @@ fun WeatherTimeline(
                             }
                     ) {
                         Column(
-                            modifier = Modifier.padding(
-                                horizontal = 7.dp,
-                                vertical = 11.dp
-                            ),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    horizontal = 6.dp,
+                                    vertical = 10.dp
+                                ),
                             horizontalAlignment =
-                                Alignment.CenterHorizontally
+                                Alignment.CenterHorizontally,
+                            verticalArrangement =
+                                Arrangement.SpaceBetween
                         ) {
                             Text(
                                 hourTime,
@@ -249,27 +253,19 @@ fun WeatherTimeline(
                                     }
                             )
 
-                            Spacer(
-                                modifier = Modifier.height(7.dp)
-                            )
-
                             Icon(
                                 weatherIcon(
                                     data.hourly.code[actualIndex],
                                     data.hourly.isDay[actualIndex] == 1
                                 ),
                                 null,
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(26.dp),
                                 tint =
                                     if (selected) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.primary
                                     }
-                            )
-
-                            Spacer(
-                                modifier = Modifier.height(7.dp)
                             )
 
                             Text(
@@ -284,17 +280,10 @@ fun WeatherTimeline(
                                     }
                             )
 
-                            if (
-                                data.hourly.precipitationProbability[
-                                    actualIndex
-                                ] > 0
-                            ) {
-                                Spacer(
-                                    modifier = Modifier.height(5.dp)
-                                )
-
+                            val rainProb = data.hourly.precipitationProbability[actualIndex]
+                            if (rainProb > 0) {
                                 Text(
-                                    "${data.hourly.precipitationProbability[actualIndex]}٪",
+                                    "${rainProb}٪".faDigits(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color =
                                         if (selected) {
@@ -303,7 +292,14 @@ fun WeatherTimeline(
                                                 .copy(alpha = 0.85f)
                                         } else {
                                             MaterialTheme.colorScheme.primary
-                                        }
+                                        },
+                                    fontWeight = FontWeight.Medium
+                                )
+                            } else {
+                                Text(
+                                    "—",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = androidx.compose.ui.graphics.Color.Transparent
                                 )
                             }
                         }
@@ -681,56 +677,33 @@ private fun WindCompass(
     direction: Int,
     modifier: Modifier = Modifier
 ) {
-    val primary =
-        MaterialTheme.colorScheme.primary
+    val primary = MaterialTheme.colorScheme.primary
+    val outline = MaterialTheme.colorScheme.outlineVariant
 
-
-    val outline =
-        MaterialTheme.colorScheme.outlineVariant
-
-    Canvas(
-        modifier = modifier
-    ) {
-        val center =
-            Offset(
-                size.width / 2f,
-                size.height / 2f
+    val paint = remember {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.GRAY
+            textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.DEFAULT,
+                android.graphics.Typeface.BOLD
             )
+        }
+    }
 
-        val radius =
-            size.minDimension * 0.42f
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val radius = size.minDimension * 0.42f
 
         drawCircle(
             color = outline,
             radius = radius,
             center = center,
-            style = Stroke(
-                width = 2.dp.toPx()
-            )
+            style = Stroke(width = 2.dp.toPx())
         )
 
-        val labelRadius =
-            radius + 5.dp.toPx()
-
-        val paint =
-            android.graphics.Paint(
-                android.graphics.Paint.ANTI_ALIAS_FLAG
-            ).apply {
-                color =
-                    android.graphics.Color.GRAY
-
-                textSize =
-                    10.dp.toPx()
-
-                textAlign =
-                    android.graphics.Paint.Align.CENTER
-
-                typeface =
-                    android.graphics.Typeface.create(
-                        android.graphics.Typeface.DEFAULT,
-                        android.graphics.Typeface.BOLD
-                    )
-            }
+        val labelRadius = radius + 5.dp.toPx()
+        paint.textSize = 10.dp.toPx()
 
         drawContext.canvas.nativeCanvas.drawText(
             "N",

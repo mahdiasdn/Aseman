@@ -34,7 +34,7 @@ class Prefs(context: Context) {
     var lang by mutableStateOf("fa"); private set
     var mode by mutableStateOf("auto"); private set
     var accent by mutableStateOf("auto"); private set
-    var font by mutableStateOf("default"); private set
+    var font by mutableStateOf("vazir"); private set
     var fontScale by mutableFloatStateOf(1f); private set
     var uTemp by mutableStateOf("c"); private set
     var uWind by mutableStateOf("kmh"); private set
@@ -51,7 +51,7 @@ class Prefs(context: Context) {
         lang = p[KEY_LANG] ?: "fa"
         mode = p[KEY_MODE] ?: "auto"
         accent = p[KEY_ACCENT] ?: "auto"
-        font = p[KEY_FONT] ?: "default"
+        font = p[KEY_FONT] ?: "vazir"
         fontScale = p[KEY_SCALE] ?: 1f
         uTemp = p[KEY_UTEMP] ?: "c"
         uWind = p[KEY_UWIND] ?: "kmh"
@@ -311,6 +311,11 @@ private val FA = mapOf(
     "min15" to "هر ۱۵ دقیقه",
     "min30" to "هر ۳۰ دقیقه",
     "min60" to "هر ۱ ساعت",
+    "min120" to "هر ۲ ساعت",
+    "min240" to "هر ۴ ساعت",
+    "min360" to "هر ۶ ساعت",
+    "min720" to "هر ۱۲ ساعت",
+    "min1440" to "هر ۲۴ ساعت (روزانه)",
     "aqi" to "کیفیت هوا",
     "sunrise" to "طلوع",
     "sunset" to "غروب",
@@ -396,6 +401,11 @@ private val EN = mapOf(
     "min15" to "Every 15 min",
     "min30" to "Every 30 min",
     "min60" to "Every hour",
+    "min120" to "Every 2 hours",
+    "min240" to "Every 4 hours",
+    "min360" to "Every 6 hours",
+    "min720" to "Every 12 hours",
+    "min1440" to "Every 24 hours (Daily)",
     "aqi" to "Air quality",
     "sunrise" to "Sunrise",
     "sunset" to "Sunset",

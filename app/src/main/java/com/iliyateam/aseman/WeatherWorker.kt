@@ -126,13 +126,15 @@ class WeatherWorker(
 
             val windUnit = windPref
 
-            val w = WeatherApi.instance.getWeather(
-                lat,
-                lon,
-                timezone = "auto",
-                temperatureUnit = tempUnit,
+            val repo = com.iliyateam.aseman.data.WeatherRepository.getInstance(ctx)
+            val result = repo.fetchWeather(
+                lat = lat,
+                lon = lon,
+                tempUnit = tempUnit,
                 windSpeedUnit = windUnit
             )
+            val w = result.weather
+            repo.saveCache(p[2], lat, lon, w, result.air)
 
             val c = w.current
 

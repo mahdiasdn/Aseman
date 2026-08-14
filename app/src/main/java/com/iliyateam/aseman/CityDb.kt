@@ -70,22 +70,40 @@ object CityDb {
         return searchInternal(q)
     }
 
+    fun defaultCities(ctx: Context? = null): List<LocalCity> {
+        if (list.isEmpty() && ctx != null) {
+            init(ctx)
+        }
+        return list.take(8)
+    }
+
+    private fun normalizeText(s: String): String {
+        return s.replace('ي', 'ی')
+            .replace('ك', 'ک')
+            .replace('ة', 'ه')
+            .replace('ۀ', 'ه')
+            .replace('\u200C', ' ')
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .lowercase()
+    }
+
     private fun searchInternal(q: String): List<LocalCity> {
-
         val t = q.trim()
-
         if (t.isEmpty()) {
             return emptyList()
         }
 
+        val normQ = normalizeText(t)
+
         return list
             .filter {
-                it.fa.contains(t) ||
+                normalizeText(it.fa).contains(normQ) ||
                         it.en.contains(
                             t,
                             ignoreCase = true
                         )
             }
-            .take(10)
+            .take(12)
     }
 }

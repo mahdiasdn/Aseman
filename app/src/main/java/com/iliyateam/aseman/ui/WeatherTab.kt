@@ -147,12 +147,12 @@ private fun WeatherBody(
 
     val favs by vm.favs.collectAsState()
 
-    val key = { a: Double, b: Double ->
-        String.format(Locale.US, "%.3f|%.3f", a, b)
-    }
-
-    val isFav = favs.any {
-        key(it.first, it.second) == key(s.lat, s.lon)
+    val isFav = remember(favs, s.lat, s.lon) {
+        val targetLat = (s.lat * 1000).toInt()
+        val targetLon = (s.lon * 1000).toInt()
+        favs.any { fav ->
+            (fav.first * 1000).toInt() == targetLat && (fav.second * 1000).toInt() == targetLon
+        }
     }
 
     LazyColumn(
@@ -616,6 +616,20 @@ private fun TempChart(
 ) {
     if (hours.size < 2) return
 
+    val paintY = remember {
+        android.text.TextPaint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 26f
+        }
+    }
+    val paintX = remember {
+        android.text.TextPaint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 26f
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+    }
+
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
 
@@ -662,18 +676,6 @@ private fun TempChart(
                             (h - top - bottom) *
                             (t - minT) /
                             range
-
-                val paintY = android.text.TextPaint().apply {
-                    color = android.graphics.Color.GRAY
-                    textSize = 26f
-                }
-
-                val paintX = android.text.TextPaint().apply {
-                    color = android.graphics.Color.GRAY
-                    textSize = 26f
-                    textAlign =
-                        android.graphics.Paint.Align.CENTER
-                }
 
                 listOf(
                     maxT,

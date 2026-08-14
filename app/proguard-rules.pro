@@ -7,7 +7,8 @@
 # Gson / Retrofit annotations
 -keepattributes RuntimeVisibleAnnotations,RuntimeInvisibleAnnotations,RuntimeVisibleParameterAnnotations,RuntimeInvisibleParameterAnnotations,AnnotationDefault,Signature
 
-# Keep Gson model fields
+# Keep Gson model fields and data classes
+-keep class com.iliyateam.aseman.data.** { *; }
 -keepclassmembers class com.iliyateam.aseman.data.** {
     <fields>;
 }

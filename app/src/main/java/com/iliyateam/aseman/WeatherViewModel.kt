@@ -101,62 +101,39 @@ class WeatherViewModel : ViewModel() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             if (!silent) _state.value = State.Loading
+            val ctx = appCtx
+            val repo = ctx?.let { com.iliyateam.aseman.data.WeatherRepository.getInstance(it) }
             try {
-                val weatherDeferred = async {
-                    WeatherApi.instance.getWeather(
-                        lat,
-                        lon,
-                        temperatureUnit = if (prefs?.uTemp == "f") "fahrenheit" else "celsius",
-                        windSpeedUnit = when (prefs?.uWind) {
-                            "ms" -> "ms"
-                            "mph" -> "mph"
-                            else -> "kmh"
-                        }
-                    )
+                val tempUnit = if (prefs?.uTemp == "f") "fahrenheit" else "celsius"
+                val windSpeedUnit = when (prefs?.uWind) {
+                    "ms" -> "ms"
+                    "mph" -> "mph"
+                    else -> "kmh"
                 }
 
-                val airDeferred = async {
-                    try {
-                        AirApi.instance.getAir(lat, lon).current
-                    } catch (_: Exception) {
-                        null
-                    }
-                }
-
-                val w = weatherDeferred.await()
-                val air = airDeferred.await()
+                val result = repo?.fetchWeather(lat, lon, tempUnit, windSpeedUnit)
+                    ?: throw IllegalStateException("Repository not initialized")
 
                 _state.value = State.Success(
-                    w,
+                    result.weather,
                     city,
                     lat,
                     lon,
                     System.currentTimeMillis(),
-                    air
+                    result.air
                 )
-                appCtx?.dataStore?.edit {
-                    it[Prefs.KEY_LAST] = "$lat|$lon|$city"
-                    it[Prefs.KEY_CACHE] = Gson().toJson(CacheBundle(city, lat, lon, w, air))
-                }
+                repo.saveCache(city, lat, lon, result.weather, result.air)
             } catch (e: Exception) {
                 if (silent && _state.value is State.Success) return@launch
-                val cached = appCtx?.dataStore?.data?.first()?.get(Prefs.KEY_CACHE)
-                val b = cached?.let {
-                    try { Gson().fromJson(it, CacheBundle::class.java) } catch (_: Exception) { null }
-                }
-                if (
-                    b != null &&
-                    b.city == city &&
-                    kotlin.math.abs(b.lat - lat) < 0.01 &&
-                    kotlin.math.abs(b.lon - lon) < 0.01
-                ) {
+                val cached = repo?.getCachedWeather(city, lat, lon)
+                if (cached != null) {
                     _state.value = State.Success(
-                        b.weather,
-                        b.city,
-                        b.lat,
-                        b.lon,
+                        cached.weather,
+                        cached.city,
+                        cached.lat,
+                        cached.lon,
                         System.currentTimeMillis(),
-                        b.air
+                        cached.air
                     )
                 } else {
                     _state.value = State.Error(prefs?.t("net_err") ?: "خطا در دریافت اطلاعات")
@@ -164,14 +141,6 @@ class WeatherViewModel : ViewModel() {
             }
         }
     }
-
-    private data class CacheBundle(
-        val city: String,
-        val lat: Double,
-        val lon: Double,
-        val weather: WeatherResponse,
-        val air: AirCurrent?
-    )
 
     fun retry() { last?.let { load(it.first, it.second, it.third) } }
 

@@ -155,20 +155,52 @@ fun skyColor(code: Int, isDay: Boolean, dark: Boolean, amoled: Boolean): Long {
         else -> 0xFFBBDEFB
     }
 }
-/* ---------- بازکردن صفحهٔ باتری هر برند ---------- */
+/* ---------- بازکردن صفحهٔ اجرای خودکار و باتری متناسب با هر برند گوشی ---------- */
 fun openAutoStart(ctx: android.content.Context) {
-    val intents = listOf(
-        android.content.Intent().setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"),
-        android.content.Intent().setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"),
-        android.content.Intent().setClassName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"),
-        android.content.Intent().setClassName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"),
-        android.content.Intent().setClassName("com.oplus.safecenter", "com.oplus.safecenter.startupapp.StartupAppListActivity"),
-        android.content.Intent().setClassName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity")
-    )
-    for (i in intents) {
+    val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+    val brandIntents = mutableListOf<android.content.Intent>()
+
+    when {
+        manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+            brandIntents.add(android.content.Intent("miui.intent.action.OP_AUTO_START").addCategory(android.content.Intent.CATEGORY_DEFAULT))
+            brandIntents.add(android.content.Intent().setClassName("com.miui.securitycenter", "com.miui.powercenter.PowerSettings"))
+        }
+        manufacturer.contains("samsung") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.samsung.android.sm", "com.samsung.android.sm.battery.ui.BatteryActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity"))
+        }
+        manufacturer.contains("huawei") || manufacturer.contains("honor") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.bootstart.BootStartActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity"))
+        }
+        manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.oplus.safecenter", "com.oplus.safecenter.startupapp.StartupAppListActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity"))
+        }
+        manufacturer.contains("vivo") || manufacturer.contains("iqoo") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager"))
+        }
+    }
+
+    // Fallbacks
+    brandIntents.add(android.content.Intent().setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+    brandIntents.add(android.content.Intent().setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"))
+    brandIntents.add(android.content.Intent().setClassName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"))
+    brandIntents.add(android.content.Intent().setClassName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"))
+    brandIntents.add(android.content.Intent().setClassName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"))
+
+    for (intent in brandIntents) {
         try {
-            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            ctx.startActivity(i)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(intent)
             return
         } catch (_: Exception) { }
     }
@@ -176,16 +208,47 @@ fun openAutoStart(ctx: android.content.Context) {
 }
 
 fun openBatterySettings(ctx: android.content.Context) {
-    val intents = listOf(
-        android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-            .setData(android.net.Uri.parse("package:" + ctx.packageName)),
+    val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+    val brandIntents = mutableListOf<android.content.Intent>()
+
+    when {
+        manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
+            brandIntents.add(
+                android.content.Intent().setClassName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")
+                    .putExtra("package_name", ctx.packageName)
+                    .putExtra("package_label", ctx.applicationInfo.loadLabel(ctx.packageManager))
+            )
+            brandIntents.add(android.content.Intent().setClassName("com.miui.securitycenter", "com.miui.powercenter.PowerSettings"))
+        }
+        manufacturer.contains("samsung") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"))
+            brandIntents.add(android.content.Intent().setClassName("com.samsung.android.sm", "com.samsung.android.sm.battery.ui.BatteryActivity"))
+        }
+        manufacturer.contains("huawei") || manufacturer.contains("honor") -> {
+            brandIntents.add(android.content.Intent().setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.power.ui.HwPowerManagerActivity"))
+        }
+    }
+
+    // Standard Android Battery Optimization Intent
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        brandIntents.add(
+            android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                .setData(android.net.Uri.parse("package:" + ctx.packageName))
+        )
+        brandIntents.add(
+            android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        )
+    }
+
+    brandIntents.add(
         android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             .setData(android.net.Uri.parse("package:" + ctx.packageName))
     )
-    for (i in intents) {
+
+    for (intent in brandIntents) {
         try {
-            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            ctx.startActivity(i)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(intent)
             return
         } catch (_: Exception) { }
     }

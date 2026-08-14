@@ -46,10 +46,18 @@ class RefreshService : Service() {
         createChannel()
 
         try {
-            startForeground(
-                NOTIFICATION_ID,
-                placeholder()
-            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    placeholder(),
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(
+                    NOTIFICATION_ID,
+                    placeholder()
+                )
+            }
         } catch (e: Exception) {
 
             Log.e(
@@ -160,14 +168,16 @@ class RefreshService : Service() {
                     "Refreshing weather for ${p[2]} ($lat, $lon)"
                 )
 
-                val w =
-                    WeatherApi.instance.getWeather(
-                        lat,
-                        lon,
-                        timezone = "auto",
-                        temperatureUnit = tempUnit,
-                        windSpeedUnit = windUnit
-                    )
+                val repo = com.iliyateam.aseman.data.WeatherRepository.getInstance(applicationContext)
+                val result = repo.fetchWeather(
+                    lat = lat,
+                    lon = lon,
+                    tempUnit = tempUnit,
+                    windSpeedUnit = windUnit
+                )
+
+                val w = result.weather
+                repo.saveCache(p[2], lat, lon, w, result.air)
 
                 val c =
                     w.current

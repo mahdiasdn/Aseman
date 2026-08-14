@@ -1,6 +1,7 @@
 package com.iliyateam.aseman.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -170,14 +171,24 @@ fun CitiesTab(
 
 @Composable
 private fun CityRow(name: String, onClick: () -> Unit, onDelete: (() -> Unit)? = null) {
-    ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
-            Text(name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Row(
+                Modifier
+                    .weight(1f)
+                    .clickable(onClick = onClick)
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
+                Text(name, fontWeight = FontWeight.Bold)
+            }
             if (onDelete != null) {
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Filled.Remove, null, tint = MaterialTheme.colorScheme.error)
