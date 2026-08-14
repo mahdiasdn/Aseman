@@ -22,6 +22,7 @@ val Context.dataStore by preferencesDataStore(name = "settings")
 
 class Prefs(context: Context) {
 
+
     private val context =
         context.applicationContext
 
@@ -37,6 +38,8 @@ class Prefs(context: Context) {
     var fontScale by mutableFloatStateOf(1f); private set
     var uTemp by mutableStateOf("c"); private set
     var uWind by mutableStateOf("kmh"); private set
+    var uPrecip by mutableStateOf("mm"); private set
+    var uDistance by mutableStateOf("km"); private set
     var refresh by mutableStateOf("30"); private set
     var alerts by mutableStateOf("1"); private set
     var notifCity by mutableStateOf(""); private set
@@ -52,6 +55,8 @@ class Prefs(context: Context) {
         fontScale = p[KEY_SCALE] ?: 1f
         uTemp = p[KEY_UTEMP] ?: "c"
         uWind = p[KEY_UWIND] ?: "kmh"
+        uPrecip = p[KEY_UPRECIP] ?: "mm"
+        uDistance = p[KEY_UDISTANCE] ?: "km"
         refresh = p[KEY_REFRESH] ?: "30"
         alerts = p[KEY_ALERTS] ?: "1"
         notifCity = p[KEY_NOTIF_CITY] ?: ""
@@ -96,6 +101,16 @@ class Prefs(context: Context) {
         save(KEY_UWIND, v)
     }
 
+    fun changePrecip(v: String) {
+        uPrecip = v
+        save(KEY_UPRECIP, v)
+    }
+
+    fun changeDistance(v: String) {
+        uDistance = v
+        save(KEY_UDISTANCE, v)
+    }
+
     fun changeRefresh(v: String) {
         refresh = v
         save(KEY_REFRESH, v)
@@ -125,6 +140,12 @@ class Prefs(context: Context) {
             "mph" -> "mph"
             else -> "km/h"
         }
+
+    fun precipitationLabel(): String =
+        if (uPrecip == "in") "in" else "mm"
+
+    fun distanceLabel(): String =
+        if (uDistance == "mi") "mi" else "km"
 
     private fun save(
         key: Preferences.Key<String>,
@@ -204,6 +225,12 @@ class Prefs(context: Context) {
         val KEY_UWIND =
             stringPreferencesKey("uwind")
 
+        val KEY_UPRECIP =
+            stringPreferencesKey("uprecip")
+
+        val KEY_UDISTANCE =
+            stringPreferencesKey("udistance")
+
         val KEY_REFRESH =
             stringPreferencesKey("refresh")
 
@@ -219,6 +246,8 @@ class Prefs(context: Context) {
         val KEY_WIDGET_BG =
             stringPreferencesKey("widget_bg")
     }
+
+
 }
 
 private val FA = mapOf(
@@ -266,6 +295,8 @@ private val FA = mapOf(
     "units" to "واحدهای اندازه‌گیری",
     "temp_unit" to "واحد دما",
     "wind_unit" to "واحد باد",
+    "precip_unit" to "واحد بارش",
+    "distance_unit" to "واحد فاصله",
     "about" to "درباره",
     "exit" to "خروج",
     "about_text" to "داده‌های هوا از وب‌سایت رایگان Open-Meteo دریافت می‌شوند.",
@@ -348,7 +379,9 @@ private val EN = mapOf(
     "hide" to "Remove",
     "units" to "Units",
     "temp_unit" to "Temperature unit",
-    "wind_unit" to "Wind unit",
+    "wind_unit" to "Wind speed unit",
+    "precip_unit" to "Precipitation unit",
+    "distance_unit" to "Distance unit",
     "about" to "About",
     "exit" to "Exit",
     "about_text" to "Weather data is provided by the free Open-Meteo website.",

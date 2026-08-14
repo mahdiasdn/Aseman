@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.iliyateam.aseman.next24
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
@@ -62,7 +63,6 @@ import com.iliyateam.aseman.dayLabel
 import com.iliyateam.aseman.descOf
 import com.iliyateam.aseman.faDigits
 import com.iliyateam.aseman.formatDateTime
-import com.iliyateam.aseman.next24
 import com.iliyateam.aseman.t
 import com.iliyateam.aseman.timeMinutes
 import com.iliyateam.aseman.weatherIcon
@@ -144,6 +144,7 @@ private fun WeatherBody(
     val nextHours = remember(d) {
         next24(d)
     }
+
     val favs by vm.favs.collectAsState()
 
     val key = { a: Double, b: Double ->
@@ -257,57 +258,15 @@ private fun WeatherBody(
             }
         }
 
-        /* ساعتی */
+
+
         item {
-            Text(
-                prefs.t("next24"),
-                style = MaterialTheme.typography.titleSmall,
+            WeatherTimeline(
+                data = d,
+                prefs = prefs,
                 modifier = Modifier.fillMaxWidth()
             )
         }
-
-        item {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(nextHours) { h ->
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer
-                    ) {
-                        Column(
-                            Modifier.padding(
-                                horizontal = 12.dp,
-                                vertical = 14.dp
-                            ),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                h.time.faDigits(),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-
-                            Spacer(Modifier.height(6.dp))
-
-                            Icon(
-                                weatherIcon(h.code, h.isDay),
-                                null,
-                                Modifier.size(26.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-
-                            Spacer(Modifier.height(6.dp))
-
-                            Text(
-                                "${h.temp.toInt()}°",
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         /* هفتگی */
         item {
             Text(
