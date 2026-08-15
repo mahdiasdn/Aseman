@@ -4,90 +4,266 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:gravity="center_horizontal"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
     android:background="@drawable/widget_bg">
 
+    <!-- Top Header: City Name + Update Time + Refresh Button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/aseman_icon" />
-
         <TextView
-            android:id="@+id/w_brand"
+            android:id="@+id/w_city"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="10dp"
             android:text="آسمان"
-            android:textColor="#90CAF9"
-            android:textSize="14sp" />
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="23sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/w_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="۱۴:۳۰"
+            android:textColor="#94A3B8"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp" />
 
         <ImageView
             android:id="@+id/w_refresh"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:src="@android:drawable/stat_notify_sync"
-            android:contentDescription="refresh" />
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:padding="2dp"
+            android:src="@drawable/ic_widget_refresh"
+            android:contentDescription="بروزرسانی" />
     </LinearLayout>
 
+    <!-- Middle Hero: Lottie Weather Icon + Large Temperature & Distinct Colored Max/Min -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingTop="4dp"
         android:paddingBottom="4dp">
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+        <!-- Lottie Weather Graphic -->
+        <FrameLayout
+            android:layout_width="66dp"
+            android:layout_height="66dp"
+            android:layout_marginEnd="10dp">
 
-            <TextView
-                android:id="@+id/w_city"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="—"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:textSize="24sp" />
+            <ImageView
+                android:id="@+id/w_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter" />
 
             <TextView
                 android:id="@+id/w_emoji"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:visibility="gone"
+                android:text="☁️"
+                android:textSize="36sp" />
+        </FrameLayout>
+
+        <!-- Temperature and Condition Name -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/w_temp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="☁️"
-                android:textSize="28sp" />
+                android:text="—°"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="38sp"
+                android:includeFontPadding="false" />
+
+            <TextView
+                android:id="@+id/w_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="…"
+                android:textColor="#E2E8F0"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
         </LinearLayout>
+
+        <!-- High & Low Dual-Colored Badges -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end|center_vertical"
+            android:layout_marginStart="6dp">
+
+            <!-- Max Temp (Warm Orange/Coral) -->
+            <TextView
+                android:id="@+id/w_max"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="▲ —°"
+                android:textColor="#FB923C"
+                android:textStyle="bold"
+                android:textSize="14sp" />
+
+            <!-- Min Temp (Cool Azure/Sky Blue) -->
+            <TextView
+                android:id="@+id/w_min"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="▼ —°"
+                android:textColor="#38BDF8"
+                android:textStyle="bold"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Bottom Separated Metric Chips: Rain, Humidity, Wind -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="2dp">
+
+        <!-- Chip 1: Rain or Feels Like -->
+        <LinearLayout
+            android:id="@+id/w_chip_1_root"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:gravity="center"
+            android:background="@drawable/widget_chip_bg">
+
+            <TextView
+                android:id="@+id/w_chip_1_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🌧️ ۰٪"
+                android:textColor="#7DD3FC"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- Chip 2: Humidity -->
+        <LinearLayout
+            android:id="@+id/w_chip_2_root"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_weight="1"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:gravity="center"
+            android:background="@drawable/widget_chip_bg">
+
+            <TextView
+                android:id="@+id/w_chip_2_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💧 ۳۵٪"
+                android:textColor="#93C5FD"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- Chip 3: Wind -->
+        <LinearLayout
+            android:id="@+id/w_chip_3_root"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:gravity="center"
+            android:background="@drawable/widget_chip_bg">
+
+            <TextView
+                android:id="@+id/w_chip_3_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💨 ۱۲ km/h"
+                android:textColor="#A7F3D0"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- Backward compatibility views -->
+        <TextView
+            android:id="@+id/w_high_low"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/w_feels"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/w_pop_humidity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/w_wind"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/w_line"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:gravity="center"
-            android:text="…"
-            android:textColor="#E0E0E0"
-            android:textSize="17sp" />
-    </LinearLayout>
+            android:visibility="gone" />
 
-    <TextView
-        android:id="@+id/w_updated"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="…"
-        android:textColor="#B0BEC5"
-        android:textSize="12sp" />
+        <TextView
+            android:id="@+id/w_brand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/w_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </LinearLayout>

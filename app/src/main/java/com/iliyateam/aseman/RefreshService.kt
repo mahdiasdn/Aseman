@@ -179,51 +179,45 @@ class RefreshService : Service() {
                 val w = result.weather
                 repo.saveCache(p[2], lat, lon, w, result.air)
 
-                val c =
-                    w.current
+                val c = w.current
+                val todayMax = w.daily.max.firstOrNull()?.toInt() ?: c.temp.toInt()
+                val todayMin = w.daily.min.firstOrNull()?.toInt() ?: c.temp.toInt()
+                val feels = c.feels.toInt()
+                val isFa = lang == "fa"
+                val desc = descOf(c.code, isFa)
+                val emoji = weatherEmoji(c.code, c.isDay == 1)
+                val pop = w.hourly.precipitationProbability.firstOrNull() ?: 0
+                val humidity = w.hourly.humidity.firstOrNull() ?: c.humidity
+                val uvIndex = w.daily.uvIndexMax.firstOrNull()?.toDouble() ?: 0.0
+                val windPref = pd[Prefs.KEY_UWIND] ?: "kmh"
+                val windUnitLabel = if (windPref == "mph") "mph" else if (windPref == "ms") "m/s" else "km/h"
 
-                val emoji =
-                    emojiOf(
-                        c.code,
-                        c.isDay == 1
-                    )
+                val tempStr = "${c.temp.toInt()}°"
+                val highLowStr = "▲ ${todayMax}°  ▼ ${todayMin}°"
+                val detailsStr = if (pop > 0) "🌧️ $pop% • 💨 ${c.wind.toInt()} $windUnitLabel" else "💧 $humidity% • 💨 ${c.wind.toInt()} $windUnitLabel"
 
-                val text =
-                    try {
-
-                        val iso =
-                            java.text.SimpleDateFormat(
-                                "yyyy-MM-dd",
-                                java.util.Locale.US
-                            ).format(
-                                java.util.Date()
-                            )
-
-                        "${c.temp.toInt()}° | " +
-                                "${descOf(c.code, lang == "fa")} | " +
-                                "${dayLabel(iso, true)} • " +
-                                dayLabel(iso, false)
-
-                    } catch (e: Exception) {
-
-                        Log.w(
-                            TAG,
-                            "Failed to build weather text",
-                            e
+                val text = try {
+                    val iso =
+                        java.text.SimpleDateFormat(
+                            "yyyy-MM-dd",
+                            java.util.Locale.US
+                        ).format(
+                            java.util.Date()
                         )
 
-                        "${c.temp.toInt()}° | " +
-                                descOf(
-                                    c.code,
-                                    lang == "fa"
-                                )
-                    }
+                    "${c.temp.toInt()}° | " +
+                            "$desc | " +
+                            "${dayLabel(iso, true)} • " +
+                            dayLabel(iso, false)
 
-                val city =
-                    cityDisplayName(
-                        p[2],
-                        lang == "fa"
-                    )
+                } catch (e: Exception) {
+                    "${c.temp.toInt()}° | $desc"
+                }
+
+                val city = cityDisplayName(
+                    p[2],
+                    isFa
+                )
 
                 val nm =
                     getSystemService(
@@ -231,24 +225,30 @@ class RefreshService : Service() {
                     ) as NotificationManager
 
                 try {
-
                     nm.notify(
                         WEATHER_NOTIFICATION_ID,
                         buildNotification(
-                            text,
-                            city,
-                            emoji
+                            city = city,
+                            temp = c.temp.toInt(),
+                            desc = desc,
+                            todayMax = todayMax,
+                            todayMin = todayMin,
+                            feels = feels,
+                            pop = pop,
+                            humidity = humidity,
+                            windSpeed = c.wind.toInt(),
+                            windUnit = windUnitLabel,
+                            uvIndex = uvIndex,
+                            emoji = emoji,
+                            isFa = isFa
                         )
                     )
-
                 } catch (e: Exception) {
-
                     Log.e(
                         TAG,
                         "Failed to post weather notification",
                         e
                     )
-
                     saveError(
                         "Notification: ${e.javaClass.simpleName}: ${e.message}"
                     )
@@ -274,37 +274,43 @@ class RefreshService : Service() {
                                             sysDark
                                     )
 
+                val maxStr = "▲ ${todayMax}°"
+                val minStr = "▼ ${todayMin}°"
+                val feelsStr = if (isFa) "حس واقعی: ${feels}°" else "Feels: ${feels}°"
+                val chip1Str = if (pop > 0) "🌧️ $pop%" else (if (isFa) "🌡️ حس ${feels}°" else "🌡️ ${feels}°")
+                val chip2Str = "💧 $humidity%"
+                val chip3Str = "💨 ${c.wind.toInt()} $windUnitLabel"
+
+                val popHumidityStr = if (pop > 0) {
+                    if (isFa) "🌧️ بارش: ${pop}٪  •  💧 ${humidity}٪" else "🌧️ Rain: $pop%  •  💧 $humidity%"
+                } else {
+                    if (isFa) "💧 رطوبت: ${humidity}٪" else "💧 Humidity: $humidity%"
+                }
+
                 getSharedPreferences(
                     "widget",
                     Context.MODE_PRIVATE
                 ).edit()
-                    .putString(
-                        "city",
-                        city
-                    )
-                    .putString(
-                        "line",
-                        text
-                    )
-                    .putString(
-                        "emoji",
-                        weatherEmoji(
-                            c.code,
-                            c.isDay == 1
-                        )
-                    )
-                    .putString(
-                        "dark",
-                        if (darkNow) "1" else "0"
-                    )
-                    .putLong(
-                        "updated_at",
-                        System.currentTimeMillis()
-                    )
-                    .putString(
-                        "last_error",
-                        ""
-                    )
+                    .putString("city", city)
+                    .putInt("code", c.code)
+                    .putInt("is_day", if (c.isDay == 1) 1 else 0)
+                    .putString("temp", tempStr)
+                    .putString("desc", desc)
+                    .putString("max_temp", maxStr)
+                    .putString("min_temp", minStr)
+                    .putString("chip_1", chip1Str)
+                    .putString("chip_2", chip2Str)
+                    .putString("chip_3", chip3Str)
+                    .putString("high_low", highLowStr)
+                    .putString("feels", feelsStr)
+                    .putString("pop_humidity", popHumidityStr)
+                    .putString("wind", chip3Str)
+                    .putString("details", detailsStr)
+                    .putString("line", text)
+                    .putString("emoji", emoji)
+                    .putString("dark", if (darkNow) "1" else "0")
+                    .putLong("updated_at", System.currentTimeMillis())
+                    .putString("last_error", "")
                     .apply()
 
                 WidgetRenderer.refresh(this@RefreshService)
@@ -422,44 +428,101 @@ class RefreshService : Service() {
             .setSilent(true)
             .build()
 
+    private fun emojiIcon(emoji: String): androidx.core.graphics.drawable.IconCompat {
+        val size = 96
+        val b = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val cv = android.graphics.Canvas(b)
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.textSize = 72f
+        p.textAlign = android.graphics.Paint.Align.CENTER
+        val r = android.graphics.Rect()
+        p.getTextBounds(emoji, 0, emoji.length, r)
+        cv.drawText(emoji, size / 2f, size / 2f - r.exactCenterY(), p)
+        return androidx.core.graphics.drawable.IconCompat.createWithBitmap(b)
+    }
+
     private fun buildNotification(
-        text: String,
         city: String,
-        emoji: String
-    ) =
-        NotificationCompat.Builder(
+        temp: Int,
+        desc: String,
+        todayMax: Int,
+        todayMin: Int,
+        feels: Int,
+        pop: Int,
+        humidity: Int,
+        windSpeed: Int,
+        windUnit: String,
+        uvIndex: Double,
+        emoji: String,
+        isFa: Boolean
+    ): android.app.Notification {
+        val clock = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date())
+        val iso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val fullDate = fullJalaliDateLabel(iso, isFa)
+
+        val title = if (isFa) "$city • ${temp}° $desc".faDigits(true) else "$city • $temp° $desc"
+        val summary = "📅 $fullDate"
+
+        val bigText = if (isFa) {
+            ("🌡️ بیشینه: ${todayMax}° | کمینه: ${todayMin}° • حس واقعی: ${feels}°\n" +
+            "🌧️ احتمال بارش: ${pop}٪ • 💧 رطوبت: ${humidity}٪\n" +
+            "💨 سرعت باد: $windSpeed $windUnit • ☀️ شاخص فرابنفش: ${uvIndex.toInt()}\n" +
+            "📅 $fullDate (بروزرسانی: $clock)").faDigits(true)
+        } else {
+            "🌡️ High: $todayMax° | Low: $todayMin° • Feels: $feels°\n" +
+            "🌧️ Rain: $pop% • 💧 Humidity: $humidity%\n" +
+            "💨 Wind: $windSpeed $windUnit • ☀️ UV Index: ${uvIndex.toInt()}\n" +
+            "📅 $fullDate (Updated: $clock)"
+        }
+
+        val openIntent = PendingIntent.getActivity(
             this,
-            "weather"
+            0,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-            .setSmallIcon(
-                R.drawable.aseman_icon
-            )
-            .setContentTitle(
-                city.ifBlank {
-                    "آسمان"
-                }
-            )
-            .setContentText(text)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(text)
-            )
+
+        val refreshIntent = PendingIntent.getBroadcast(
+            this,
+            1,
+            Intent(this, WeatherWidgetProvider::class.java).apply {
+                action = WeatherWidgetProvider.ACTION_REFRESH
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val refreshAction = NotificationCompat.Action.Builder(
+            R.drawable.ic_widget_refresh,
+            if (isFa) "بروزرسانی" else "Refresh",
+            refreshIntent
+        ).build()
+
+        val openAction = NotificationCompat.Action.Builder(
+            android.R.drawable.ic_menu_view,
+            if (isFa) "مشاهده برنامه" else "Open App",
+            openIntent
+        ).build()
+
+        return NotificationCompat.Builder(this, "weather")
+            .setSmallIcon(emojiIcon(emoji))
+            .setContentTitle(title)
+            .setContentText(summary)
+            .setSubText(if (isFa) "آسمان" else "Aseman")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
+            .setColor(0xFF0284C7.toInt())
             .setOngoing(true)
             .setAutoCancel(false)
             .setSilent(true)
             .setOnlyAlertOnce(true)
-            .setContentIntent(
-                PendingIntent.getActivity(
-                    this,
-                    0,
-                    Intent(
-                        this,
-                        MainActivity::class.java
-                    ),
-                    PendingIntent.FLAG_IMMUTABLE
-                )
-            )
+            .setShowWhen(true)
+            .setWhen(System.currentTimeMillis())
+            .setContentIntent(openIntent)
+            .addAction(refreshAction)
+            .addAction(openAction)
             .build()
+    }
 
 
 }

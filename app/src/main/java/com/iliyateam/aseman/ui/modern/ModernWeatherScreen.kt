@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.iliyateam.aseman.Prefs
@@ -222,15 +223,35 @@ fun ModernWeatherScreen(
                                 key = { idx, h -> "${h.time}_$idx" }
                             ) { idx, h ->
                                 val isSelected = idx == selectedHourIndex
+                                val pillScale by androidx.compose.animation.core.animateFloatAsState(
+                                    targetValue = if (isSelected) 1.04f else 1.0f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                    ),
+                                    label = "pill_scale"
+                                )
+                                val pillElevation by androidx.compose.animation.core.animateDpAsState(
+                                    targetValue = if (isSelected) 6.dp else 1.dp,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                                    ),
+                                    label = "pill_elevation"
+                                )
+
                                 Surface(
                                     modifier = Modifier
-                                        .width(70.dp)
-                                        .height(125.dp)
+                                        .width(72.dp)
+                                        .height(126.dp)
+                                        .graphicsLayer(scaleX = pillScale, scaleY = pillScale)
                                         .clickable {
                                             selectedHourIndex = idx
                                         },
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer
+                                    shape = RoundedCornerShape(if (isSelected) 22.dp else 18.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                                    tonalElevation = pillElevation,
+                                    shadowElevation = if (isSelected) 4.dp else 0.dp
                                 ) {
                                     Column(
                                         modifier = Modifier
@@ -265,7 +286,7 @@ fun ModernWeatherScreen(
                                             Text(
                                                 text = "${h.pop}%".faDigits(),
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f) else Color(0xFF38BDF8),
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         } else {

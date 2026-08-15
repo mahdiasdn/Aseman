@@ -41,8 +41,8 @@ fun next24(d: WeatherResponse): List<HourItem> {
     }
 }
 
-fun String.faDigits(): String =
-    if (java.util.Locale.getDefault().language == "fa")
+fun String.faDigits(force: Boolean = false): String =
+    if (force || java.util.Locale.getDefault().language == "fa")
         map { c -> if (c in '0'..'9') ('۰'.code + (c - '0')).toChar() else c }.joinToString("")
     else this
 
@@ -170,6 +170,51 @@ fun formatDateTime(ts: Long): String {
 }
 
 /* ---------- تاریخ شمسی ---------- */
+fun persianDayOfWeek(isoDate: String): String = try {
+    val cal = java.util.Calendar.getInstance()
+    val parts = isoDate.split("-")
+    cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+    when (cal.get(java.util.Calendar.DAY_OF_WEEK)) {
+        java.util.Calendar.SATURDAY -> "شنبه"
+        java.util.Calendar.SUNDAY -> "یکشنبه"
+        java.util.Calendar.MONDAY -> "دوشنبه"
+        java.util.Calendar.TUESDAY -> "سه‌شنبه"
+        java.util.Calendar.WEDNESDAY -> "چهارشنبه"
+        java.util.Calendar.THURSDAY -> "پنج‌شنبه"
+        java.util.Calendar.FRIDAY -> "جمعه"
+        else -> ""
+    }
+} catch (_: Exception) {
+    ""
+}
+
+fun fullJalaliDateLabel(isoDate: String, fa: Boolean): String = try {
+    val p = isoDate.split("-")
+    if (fa) {
+        val weekday = persianDayOfWeek(isoDate)
+        val res = jalaliDate(p[0].toInt(), p[1].toInt(), p[2].toInt())
+        val months = listOf(
+            "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+            "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+        )
+        val monthName = months.getOrNull(res.second - 1) ?: ""
+        if (weekday.isNotBlank()) {
+            "$weekday، ${res.third} $monthName".faDigits(true)
+        } else {
+            "${res.third} $monthName".faDigits(true)
+        }
+    } else {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt())
+        val enMonths = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        val enDays = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val dayName = enDays[cal.get(java.util.Calendar.DAY_OF_WEEK) - 1]
+        "$dayName, ${enMonths[p[1].toInt() - 1]} ${p[2].toInt()}"
+    }
+} catch (e: Exception) {
+    dayLabel(isoDate, fa)
+}
+
 fun dayLabel(isoDate: String, fa: Boolean): String = try {
     val p = isoDate.split("-")
     if (fa) {

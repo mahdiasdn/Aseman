@@ -41,6 +41,7 @@ import com.iliyateam.aseman.descOf
 import com.iliyateam.aseman.faDigits
 import com.iliyateam.aseman.t
 import com.iliyateam.aseman.weatherIcon
+import com.iliyateam.aseman.ui.modern.WeatherLottieIcon
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
@@ -253,19 +254,17 @@ fun WeatherTimeline(
                                     }
                             )
 
-                            Icon(
-                                weatherIcon(
-                                    data.hourly.code[actualIndex],
-                                    data.hourly.isDay[actualIndex] == 1
-                                ),
-                                null,
-                                modifier = Modifier.size(26.dp),
+                            WeatherLottieIcon(
+                                code = data.hourly.code[actualIndex],
+                                isDay = data.hourly.isDay[actualIndex] == 1,
+                                modifier = Modifier.size(28.dp),
                                 tint =
                                     if (selected) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.primary
-                                    }
+                                    },
+                                animate = true
                             )
 
                             Text(
@@ -324,14 +323,12 @@ fun WeatherTimeline(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            weatherIcon(
-                                code,
-                                isDay
-                            ),
-                            null,
+                        WeatherLottieIcon(
+                            code = code,
+                            isDay = isDay,
                             modifier = Modifier.size(54.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            animate = true
                         )
 
                         Spacer(

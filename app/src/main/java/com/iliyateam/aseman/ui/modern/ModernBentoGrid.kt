@@ -144,6 +144,7 @@ private fun UvBentoCard(
     BentoContainer(
         icon = Icons.Outlined.WbSunny,
         title = if (isFa) "شاخص UV" else "UV Index",
+        iconTint = Color(0xFF8B5CF6),
         modifier = modifier
     ) {
         Column(
@@ -228,6 +229,7 @@ private fun AqiBentoCard(
     BentoContainer(
         icon = Icons.Outlined.Air,
         title = if (isFa) "کیفیت هوا" else "Air Quality",
+        iconTint = Color(0xFF10B981),
         modifier = modifier
     ) {
         Column(
@@ -295,6 +297,7 @@ private fun WindBentoCard(
     BentoContainer(
         icon = Icons.Outlined.Explore,
         title = if (isFa) "جهت و سرعت باد" else "Wind",
+        iconTint = Color(0xFF06B6D4),
         modifier = modifier
     ) {
         Row(
@@ -316,7 +319,7 @@ private fun WindBentoCard(
                 Text(
                     text = if (isFa) "تندباد: ${windGusts.toInt()}".faDigits() else "Gusts: ${windGusts.toInt()}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = Color(0xFF0284C7),
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -376,10 +379,10 @@ private fun WindBentoCard(
    4. Sun Cycle Bento Card (Accurate Real-Time Sun Position Arc)
    ========================================================================= */
 private fun parseMinutes(timeStr: String): Int {
-    val t = timeStr.substringAfter("T").take(5)
+    val t = if (timeStr.contains("T")) timeStr.substringAfter("T").take(5) else timeStr.take(5)
     val parts = t.split(":")
-    val h = parts.getOrNull(0)?.toIntOrNull() ?: 6
-    val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+    val h = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: 6
+    val m = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 0
     return h * 60 + m
 }
 
@@ -404,25 +407,42 @@ private fun SunCycleBentoCard(
         ((nowMin - srMin).toFloat() / (ssMin - srMin)).coerceIn(0f, 1f)
     } else 0.5f
 
-    val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f) }
+    val timeStatus = remember(nowMin, srMin, ssMin, isDaytime, isFa) {
+        if (isDaytime) {
+            val left = ssMin - nowMin
+            val h = left / 60
+            val m = left % 60
+            if (h > 0) {
+                if (isFa) "$h س تا غروب" else "${h}h to sunset"
+            } else {
+                if (isFa) "$m د تا غروب" else "${m}m to sunset"
+            }
+        } else {
+            if (isFa) "شب" else "Night"
+        }
+    }
+
+    val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f) }
 
     BentoContainer(
         icon = Icons.Outlined.WbSunny,
         title = if (isFa) "طلوع و غروب" else "Sun Cycle",
+        iconTint = Color(0xFFF59E0B),
         modifier = modifier
     ) {
         // Solar Arc Canvas
-        val solarBaseLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
-        val solarDashedArcColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
+        val solarBaseLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+        val solarDashedArcColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f)
+
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(56.dp)
         ) {
             val w = size.width
             val h = size.height
             val baseY = h * 0.88f
-            val r = w * 0.40f
+            val r = (w * 0.42f).coerceAtMost(baseY - 8.dp.toPx())
             val cx = w / 2f
 
             // Horizon Base Line
@@ -447,61 +467,88 @@ private fun SunCycleBentoCard(
                 )
             )
 
-            // Active Illuminated Daytime Path
             if (isDaytime && fraction > 0.01f) {
+                // Active Illuminated Daytime Path
                 drawArc(
-                    brush = Brush.horizontalGradient(listOf(Color(0xFFF59E0B), Color(0xFFFBBF24))),
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFFF59E0B),
+                            Color(0xFFFBBF24),
+                            Color(0xFFFFD54F)
+                        )
+                    ),
                     startAngle = 180f,
                     sweepAngle = 180f * fraction,
                     useCenter = false,
                     topLeft = Offset(cx - r, baseY - r),
                     size = Size(r * 2f, r * 2f),
-                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
                 )
-            }
 
-            // Real-Time Sun Position Orb
-            val sunAngle = Math.PI * (1.0 - fraction)
-            val sunX = cx + (r * cos(sunAngle)).toFloat()
-            val sunY = baseY - (r * sin(sunAngle)).toFloat()
+                // Real-Time Sun Position Orb
+                val sunAngle = Math.PI * (1.0 - fraction)
+                val sunX = cx + (r * cos(sunAngle)).toFloat()
+                val sunY = baseY - (r * sin(sunAngle)).toFloat()
 
-            if (isDaytime) {
-                // Sun Outer Glow
+                // Sun Outer Corona Glow
                 drawCircle(
-                    color = Color(0xFFFFD54F).copy(alpha = 0.4f),
-                    radius = 10.dp.toPx(),
+                    color = Color(0xFFFFD54F).copy(alpha = 0.30f),
+                    radius = 11.dp.toPx(),
                     center = Offset(sunX, sunY)
                 )
-                // Sun Core
+                // Sun Inner Corona
                 drawCircle(
-                    color = Color(0xFFFFB300),
-                    radius = 5.5.dp.toPx(),
+                    color = Color(0xFFFBBF24).copy(alpha = 0.65f),
+                    radius = 7.dp.toPx(),
+                    center = Offset(sunX, sunY)
+                )
+                // Sun Radiant Core
+                drawCircle(
+                    color = Color(0xFFF59E0B),
+                    radius = 4.5.dp.toPx(),
                     center = Offset(sunX, sunY)
                 )
             } else {
                 // Moon Indicator (Nighttime)
+                val moonX = if (nowMin < srMin) cx - r else cx + r
                 drawCircle(
-                    color = Color(0xFFE0F2FE).copy(alpha = 0.8f),
+                    color = Color(0xFF94A3B8).copy(alpha = 0.35f),
+                    radius = 8.dp.toPx(),
+                    center = Offset(moonX, baseY)
+                )
+                drawCircle(
+                    color = Color(0xFFE2E8F0),
                     radius = 4.5.dp.toPx(),
-                    center = Offset(if (nowMin < srMin) cx - r else cx + r, baseY)
+                    center = Offset(moonX, baseY)
                 )
             }
         }
 
-        // Sunrise & Sunset Labels
+        // Sunrise & Sunset Labels + Time Status
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "${if (isFa) "طلوع " else "Rise "}${sunrise.substringAfter("T").take(5)}".faDigits(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
             )
+
+            Text(
+                text = timeStatus.faDigits(),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isDaytime) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold
+            )
+
             Text(
                 text = "${if (isFa) "غروب " else "Set "}${sunset.substringAfter("T").take(5)}".faDigits(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -519,7 +566,8 @@ private fun HumidityBentoCard(
 ) {
     BentoContainer(
         icon = Icons.Outlined.WaterDrop,
-        title = if (isFa) "رطوبت هوا" else "Humidity",
+        title = if (isFa) "رطوبت" else "Humidity",
+        iconTint = Color(0xFF3B82F6),
         modifier = modifier
     ) {
         Column {
@@ -567,7 +615,8 @@ private fun VisibilityBentoCard(
 ) {
     BentoContainer(
         icon = Icons.Outlined.Visibility,
-        title = if (isFa) "دید و فشار" else "Visibility",
+        title = if (isFa) "دید و فشار هوا" else "Visibility & Pressure",
+        iconTint = Color(0xFF6366F1),
         modifier = modifier
     ) {
         Column {
@@ -600,12 +649,13 @@ private fun BentoContainer(
     icon: ImageVector,
     title: String,
     modifier: Modifier = Modifier,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     content: @Composable ColumnScope.() -> Unit
 ) {
     PixelGlassCard(
         isDynamicTheme = true,
-        modifier = modifier.height(154.dp),
-        shapeRadius = 22.dp
+        modifier = modifier.height(156.dp),
+        shapeRadius = 24.dp
     ) {
         Column(
             modifier = Modifier
@@ -621,7 +671,7 @@ private fun BentoContainer(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = iconTint
                 )
                 Text(
                     text = title,

@@ -77,6 +77,7 @@ import com.iliyateam.aseman.formatDateTime
 import com.iliyateam.aseman.t
 import com.iliyateam.aseman.timeMinutes
 import com.iliyateam.aseman.weatherIcon
+import com.iliyateam.aseman.ui.modern.WeatherLottieIcon
 import java.util.Locale
 
 @Composable
@@ -109,7 +110,7 @@ fun WeatherTab(prefs: Prefs, pad: PaddingValues, vm: WeatherViewModel = viewMode
         Box(Modifier.fillMaxSize()) {
             when (val s = state) {
                 is WeatherViewModel.State.Loading -> {
-                    ModernLaunchLoadingView(prefs)
+                    com.iliyateam.aseman.ui.modern.M3ExpressiveLoadingScreen(prefs)
                 }
 
                 is WeatherViewModel.State.Error ->
@@ -196,14 +197,12 @@ private fun WeatherBody(
 
                         Spacer(Modifier.height(8.dp))
 
-                        Icon(
-                            weatherIcon(
-                                d.current.code,
-                                d.current.isDay == 1
-                            ),
-                            null,
-                            Modifier.size(84.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                        WeatherLottieIcon(
+                            code = d.current.code,
+                            isDay = d.current.isDay == 1,
+                            modifier = Modifier.size(96.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            animate = true
                         )
 
                         Text(
@@ -324,14 +323,12 @@ private fun WeatherBody(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Icon(
-                        weatherIcon(
-                            d.daily.code[i],
-                            true
-                        ),
-                        null,
-                        Modifier.size(22.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                    WeatherLottieIcon(
+                        code = d.daily.code[i],
+                        isDay = true,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                        animate = true
                     )
 
                     Spacer(Modifier.width(12.dp))
@@ -567,10 +564,16 @@ private fun SunCard(
                     baseY - (r * Math.sin(ang)).toFloat()
 
                 drawCircle(
-                    androidx.compose.ui.graphics.Color(
-                        0xFFFFEB3B
-                    ),
-                    radius = 14f,
+                    color = androidx.compose.ui.graphics.Color(0xFFFFD54F).copy(alpha = 0.35f),
+                    radius = 22f,
+                    center = androidx.compose.ui.geometry.Offset(
+                        x,
+                        y
+                    )
+                )
+                drawCircle(
+                    color = androidx.compose.ui.graphics.Color(0xFFF59E0B),
+                    radius = 12f,
                     center = androidx.compose.ui.geometry.Offset(
                         x,
                         y
@@ -852,11 +855,12 @@ fun ModernLaunchLoadingView(prefs: Prefs) {
                     .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = weatherIcon(0, true),
-                        contentDescription = null,
+                    WeatherLottieIcon(
+                        code = 0,
+                        isDay = true,
+                        modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(54.dp)
+                        animate = true
                     )
                 }
             }

@@ -123,6 +123,7 @@ class WeatherViewModel : ViewModel() {
                     result.air
                 )
                 repo.saveCache(city, lat, lon, result.weather, result.air)
+                syncWidget(city, result.weather)
             } catch (e: Exception) {
                 if (silent && _state.value is State.Success) return@launch
                 val cached = repo?.getCachedWeather(city, lat, lon)
@@ -135,10 +136,71 @@ class WeatherViewModel : ViewModel() {
                         System.currentTimeMillis(),
                         cached.air
                     )
+                    syncWidget(cached.city, cached.weather)
                 } else {
                     _state.value = State.Error(prefs?.t("net_err") ?: "خطا در دریافت اطلاعات")
                 }
             }
+        }
+    }
+
+    private fun syncWidget(city: String, w: WeatherResponse) {
+        val ctx = appCtx ?: return
+        try {
+            val isFa = prefs?.lang == "fa"
+            val c = w.current
+            val todayMax = w.daily.max.firstOrNull()?.toInt() ?: c.temp.toInt()
+            val todayMin = w.daily.min.firstOrNull()?.toInt() ?: c.temp.toInt()
+            val feels = c.feels.toInt()
+            val desc = descOf(c.code, isFa)
+            val emoji = weatherEmoji(c.code, c.isDay == 1)
+            val windUnit = prefs?.windLabel() ?: "km/h"
+            val pop = w.hourly.precipitationProbability.firstOrNull() ?: 0
+            val humidity = w.hourly.humidity.firstOrNull() ?: c.humidity
+
+            val maxStr = "▲ ${todayMax}°"
+            val minStr = "▼ ${todayMin}°"
+            val tempStr = "${c.temp.toInt()}°"
+            val highLowStr = "▲ ${todayMax}°  ▼ ${todayMin}°"
+            val feelsStr = if (isFa) "حس واقعی: ${feels}°" else "Feels: ${feels}°"
+            val chip1Str = if (pop > 0) "🌧️ $pop%" else (if (isFa) "🌡️ حس ${feels}°" else "🌡️ ${feels}°")
+            val chip2Str = "💧 $humidity%"
+            val chip3Str = "💨 ${c.wind.toInt()} $windUnit"
+            val popHumidityStr = if (pop > 0) {
+                if (isFa) "🌧️ بارش: ${pop}٪  •  💧 ${humidity}٪" else "🌧️ Rain: $pop%  •  💧 $humidity%"
+            } else {
+                if (isFa) "💧 رطوبت: ${humidity}٪" else "💧 Humidity: $humidity%"
+            }
+            val detailsStr = if (pop > 0) "🌧️ $pop% • 💨 ${c.wind.toInt()} $windUnit" else "💧 $humidity% • 💨 ${c.wind.toInt()} $windUnit"
+
+            val sp = ctx.getSharedPreferences("widget", Context.MODE_PRIVATE)
+            val iso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+            val line = "${c.temp.toInt()}° | $desc | ${dayLabel(iso, true)} • ${dayLabel(iso, false)}"
+
+            sp.edit()
+                .putString("city", cityDisplayName(city, isFa))
+                .putInt("code", c.code)
+                .putInt("is_day", if (c.isDay == 1) 1 else 0)
+                .putString("temp", tempStr)
+                .putString("desc", desc)
+                .putString("max_temp", maxStr)
+                .putString("min_temp", minStr)
+                .putString("chip_1", chip1Str)
+                .putString("chip_2", chip2Str)
+                .putString("chip_3", chip3Str)
+                .putString("high_low", highLowStr)
+                .putString("feels", feelsStr)
+                .putString("pop_humidity", popHumidityStr)
+                .putString("wind", chip3Str)
+                .putString("details", detailsStr)
+                .putString("line", line)
+                .putString("emoji", emoji)
+                .putLong("updated_at", System.currentTimeMillis())
+                .putString("last_error", "")
+                .apply()
+
+            WidgetRenderer.refresh(ctx)
+        } catch (_: Exception) {
         }
     }
 

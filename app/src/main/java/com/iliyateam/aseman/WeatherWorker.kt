@@ -48,17 +48,29 @@ class WeatherWorker(
     }
 
     override suspend fun getForegroundInfo(): androidx.work.ForegroundInfo {
-        val sp = ctx.getSharedPreferences(
-            "widget",
-            Context.MODE_PRIVATE
-        )
+        val sp = ctx.getSharedPreferences("widget", Context.MODE_PRIVATE)
+        val city = sp.getString("city", "آسمان") ?: "آسمان"
+        val temp = sp.getString("temp", "")?.replace("°", "")?.toIntOrNull() ?: 20
+        val desc = sp.getString("desc", "…") ?: "…"
+        val emoji = sp.getString("emoji", "☁️") ?: "☁️"
 
+        createChannel()
         return androidx.work.ForegroundInfo(
             100,
             buildNotification(
-                sp.getString("line", "…") ?: "…",
-                sp.getString("city", "آسمان") ?: "آسمان",
-                sp.getString("emoji", "☁️") ?: "☁️"
+                city = city,
+                temp = temp,
+                desc = desc,
+                todayMax = temp,
+                todayMin = temp,
+                feels = temp,
+                pop = 0,
+                humidity = 0,
+                windSpeed = 0,
+                windUnit = "km/h",
+                uvIndex = 0.0,
+                emoji = emoji,
+                isFa = true
             )
         )
     }
@@ -137,11 +149,20 @@ class WeatherWorker(
             repo.saveCache(p[2], lat, lon, w, result.air)
 
             val c = w.current
+            val todayMax = w.daily.max.firstOrNull()?.toInt() ?: c.temp.toInt()
+            val todayMin = w.daily.min.firstOrNull()?.toInt() ?: c.temp.toInt()
+            val feels = c.feels.toInt()
+            val isFa = lang == "fa"
+            val desc = descOf(c.code, isFa)
+            val emoji = weatherEmoji(c.code, c.isDay == 1)
+            val pop = w.hourly.precipitationProbability.firstOrNull() ?: 0
+            val humidity = w.hourly.humidity.firstOrNull() ?: c.humidity
+            val uvIndex = w.daily.uvIndexMax.firstOrNull()?.toDouble() ?: 0.0
+            val windUnitLabel = if (windPref == "mph") "mph" else if (windPref == "ms") "m/s" else "km/h"
 
-            val emoji = emojiOf(
-                c.code,
-                c.isDay == 1
-            )
+            val tempStr = "${c.temp.toInt()}°"
+            val highLowStr = "▲ ${todayMax}°  ▼ ${todayMin}°"
+            val detailsStr = if (pop > 0) "🌧️ $pop% • 💨 ${c.wind.toInt()} $windUnitLabel" else "💧 $humidity% • 💨 ${c.wind.toInt()} $windUnitLabel"
 
             val text = try {
                 val iso =
@@ -153,21 +174,17 @@ class WeatherWorker(
                     )
 
                 "${c.temp.toInt()}° | " +
-                        "${descOf(c.code, lang == "fa")} | " +
+                        "$desc | " +
                         "${dayLabel(iso, true)} • " +
                         dayLabel(iso, false)
 
             } catch (_: Exception) {
-                "${c.temp.toInt()}° | " +
-                        descOf(
-                            c.code,
-                            lang == "fa"
-                        )
+                "${c.temp.toInt()}° | $desc"
             }
 
             val city = cityDisplayName(
                 p[2],
-                lang == "fa"
+                isFa
             )
 
             createChannel()
@@ -184,9 +201,19 @@ class WeatherWorker(
                 nm.notify(
                     101,
                     buildNotification(
-                        text,
-                        city,
-                        emoji
+                        city = city,
+                        temp = c.temp.toInt(),
+                        desc = desc,
+                        todayMax = todayMax,
+                        todayMin = todayMin,
+                        feels = feels,
+                        pop = pop,
+                        humidity = humidity,
+                        windSpeed = c.wind.toInt(),
+                        windUnit = windUnitLabel,
+                        uvIndex = uvIndex,
+                        emoji = emoji,
+                        isFa = isFa
                     )
                 )
 
@@ -216,37 +243,43 @@ class WeatherWorker(
                                         sysDark
                                 )
 
+            val maxStr = "▲ ${todayMax}°"
+            val minStr = "▼ ${todayMin}°"
+            val feelsStr = if (isFa) "حس واقعی: ${feels}°" else "Feels: ${feels}°"
+            val chip1Str = if (pop > 0) "🌧️ $pop%" else (if (isFa) "🌡️ حس ${feels}°" else "🌡️ ${feels}°")
+            val chip2Str = "💧 $humidity%"
+            val chip3Str = "💨 ${c.wind.toInt()} $windUnitLabel"
+
+            val popHumidityStr = if (pop > 0) {
+                if (isFa) "🌧️ بارش: ${pop}٪  •  💧 ${humidity}٪" else "🌧️ Rain: $pop%  •  💧 $humidity%"
+            } else {
+                if (isFa) "💧 رطوبت: ${humidity}٪" else "💧 Humidity: $humidity%"
+            }
+
             ctx.getSharedPreferences(
                 "widget",
                 Context.MODE_PRIVATE
             ).edit()
-                .putString(
-                    "city",
-                    city
-                )
-                .putString(
-                    "line",
-                    text
-                )
-                .putString(
-                    "emoji",
-                    weatherEmoji(
-                        c.code,
-                        c.isDay == 1
-                    )
-                )
-                .putString(
-                    "dark",
-                    if (darkNow) "1" else "0"
-                )
-                .putLong(
-                    "updated_at",
-                    System.currentTimeMillis()
-                )
-                .putString(
-                    "last_error",
-                    ""
-                )
+                .putString("city", city)
+                .putInt("code", c.code)
+                .putInt("is_day", if (c.isDay == 1) 1 else 0)
+                .putString("temp", tempStr)
+                .putString("desc", desc)
+                .putString("max_temp", maxStr)
+                .putString("min_temp", minStr)
+                .putString("chip_1", chip1Str)
+                .putString("chip_2", chip2Str)
+                .putString("chip_3", chip3Str)
+                .putString("high_low", highLowStr)
+                .putString("feels", feelsStr)
+                .putString("pop_humidity", popHumidityStr)
+                .putString("wind", chip3Str)
+                .putString("details", detailsStr)
+                .putString("line", text)
+                .putString("emoji", emoji)
+                .putString("dark", if (darkNow) "1" else "0")
+                .putLong("updated_at", System.currentTimeMillis())
+                .putString("last_error", "")
                 .apply()
 
             WidgetRenderer.refresh(ctx)
@@ -385,43 +418,87 @@ class WeatherWorker(
     }
 
     private fun buildNotification(
-        text: String,
         city: String,
-        emoji: String
-    ) =
-        NotificationCompat.Builder(
+        temp: Int,
+        desc: String,
+        todayMax: Int,
+        todayMin: Int,
+        feels: Int,
+        pop: Int,
+        humidity: Int,
+        windSpeed: Int,
+        windUnit: String,
+        uvIndex: Double,
+        emoji: String,
+        isFa: Boolean
+    ): android.app.Notification {
+        val clock = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date())
+        val iso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val fullDate = fullJalaliDateLabel(iso, isFa)
+
+        val title = if (isFa) "$city • ${temp}° $desc".faDigits(true) else "$city • $temp° $desc"
+        val summary = "📅 $fullDate"
+
+        val bigText = if (isFa) {
+            ("🌡️ بیشینه: ${todayMax}° | کمینه: ${todayMin}° • حس واقعی: ${feels}°\n" +
+            "🌧️ احتمال بارش: ${pop}٪ • 💧 رطوبت: ${humidity}٪\n" +
+            "💨 سرعت باد: $windSpeed $windUnit • ☀️ شاخص فرابنفش: ${uvIndex.toInt()}\n" +
+            "📅 $fullDate (بروزرسانی: $clock)").faDigits(true)
+        } else {
+            "🌡️ High: $todayMax° | Low: $todayMin° • Feels: $feels°\n" +
+            "🌧️ Rain: $pop% • 💧 Humidity: $humidity%\n" +
+            "💨 Wind: $windSpeed $windUnit • ☀️ UV Index: ${uvIndex.toInt()}\n" +
+            "📅 $fullDate (Updated: $clock)"
+        }
+
+        val openIntent = PendingIntent.getActivity(
             ctx,
-            "weather"
+            0,
+            Intent(ctx, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-            .setSmallIcon(
-                emojiIcon(emoji)
-            )
-            .setContentTitle(
-                city.ifBlank {
-                    "آسمان"
-                }
-            )
-            .setContentText(text)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(text)
-            )
+
+        val refreshIntent = PendingIntent.getBroadcast(
+            ctx,
+            1,
+            Intent(ctx, WeatherWidgetProvider::class.java).apply {
+                action = WeatherWidgetProvider.ACTION_REFRESH
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val refreshAction = NotificationCompat.Action.Builder(
+            R.drawable.ic_widget_refresh,
+            if (isFa) "بروزرسانی" else "Refresh",
+            refreshIntent
+        ).build()
+
+        val openAction = NotificationCompat.Action.Builder(
+            android.R.drawable.ic_menu_view,
+            if (isFa) "مشاهده برنامه" else "Open App",
+            openIntent
+        ).build()
+
+        return NotificationCompat.Builder(ctx, "weather")
+            .setSmallIcon(emojiIcon(emoji))
+            .setContentTitle(title)
+            .setContentText(summary)
+            .setSubText(if (isFa) "آسمان" else "Aseman")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
+            .setColor(0xFF0284C7.toInt())
             .setOngoing(true)
             .setAutoCancel(false)
             .setSilent(true)
             .setOnlyAlertOnce(true)
-            .setContentIntent(
-                PendingIntent.getActivity(
-                    ctx,
-                    0,
-                    Intent(
-                        ctx,
-                        MainActivity::class.java
-                    ),
-                    PendingIntent.FLAG_IMMUTABLE
-                )
-            )
+            .setShowWhen(true)
+            .setWhen(System.currentTimeMillis())
+            .setContentIntent(openIntent)
+            .addAction(refreshAction)
+            .addAction(openAction)
             .build()
+    }
 
     private suspend fun checkAlerts(
         w: WeatherResponse,

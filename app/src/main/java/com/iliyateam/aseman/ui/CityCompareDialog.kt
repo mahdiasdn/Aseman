@@ -58,6 +58,7 @@ import com.iliyateam.aseman.data.WeatherResult
 import com.iliyateam.aseman.descOf
 import com.iliyateam.aseman.t
 import com.iliyateam.aseman.weatherIcon
+import com.iliyateam.aseman.ui.modern.WeatherLottieIcon
 import kotlinx.coroutines.launch
 
 @Composable
@@ -238,7 +239,19 @@ fun CityCompareDialog(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            com.iliyateam.aseman.ui.modern.M3ExpressiveKineticLoader(
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = if (isFa) "در حال مقایسه هوشمند دو شهر..." else "Comparing cities...",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 } else {
                     val w1 = weather1?.weather
@@ -463,11 +476,12 @@ private fun CityHeroSummary(
                 fontWeight = FontWeight.Bold
             )
 
-            Icon(
-                imageVector = weatherIcon(code, isDay),
-                contentDescription = null,
-                modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.primary
+            WeatherLottieIcon(
+                code = code,
+                isDay = isDay,
+                modifier = Modifier.size(42.dp),
+                tint = MaterialTheme.colorScheme.primary,
+                animate = true
             )
 
             Text(
