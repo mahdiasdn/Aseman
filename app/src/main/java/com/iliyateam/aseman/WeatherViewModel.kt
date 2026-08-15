@@ -234,6 +234,13 @@ class WeatherViewModel : ViewModel() {
             }
         }
     }
+
+    fun clearSearch() {
+        searchJob?.cancel()
+        _results.value = emptyList()
+        _vpnHint.value = false
+    }
+
     /* ---------- علاقه‌مندی‌ها ---------- */
     private val _favs = MutableStateFlow<List<Triple<Double, Double, String>>>(emptyList())
     val favs: StateFlow<List<Triple<Double, Double, String>>> = _favs

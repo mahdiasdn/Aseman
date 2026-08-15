@@ -144,10 +144,10 @@ fun WeatherTimeline(
     val isDay =
         data.hourly.isDay[index] == 1
 
-    Surface(
+    PixelGlassCard(
+        isDynamicTheme = prefs.themeStyle == "dynamic",
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer
+        shapeRadius = 24.dp
     ) {
         Column(
             modifier = Modifier

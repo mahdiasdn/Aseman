@@ -9,16 +9,35 @@ import androidx.compose.material.icons.outlined.Dehaze
 import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.Grain
 import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.unit.dp
 import com.iliyateam.aseman.data.WeatherResponse
 
-data class HourItem(val time: String, val temp: Double, val code: Int, val isDay: Boolean)
+data class HourItem(
+    val time: String,
+    val temp: Double,
+    val code: Int,
+    val isDay: Boolean,
+    val pop: Int = 0
+)
 
 fun next24(d: WeatherResponse): List<HourItem> {
     val now = d.current.time.take(13) + ":00"
     val start = d.hourly.time.indexOfFirst { it >= now }.coerceAtLeast(0)
     return (start until minOf(start + 24, d.hourly.time.size)).map { i ->
-        HourItem(d.hourly.time[i].takeLast(5), d.hourly.temp[i], d.hourly.code[i], d.hourly.isDay[i] == 1)
+        HourItem(
+            time = d.hourly.time[i].takeLast(5),
+            temp = d.hourly.temp[i],
+            code = d.hourly.code[i],
+            isDay = d.hourly.isDay[i] == 1,
+            pop = d.hourly.precipitationProbability.getOrNull(i) ?: 0
+        )
     }
 }
 
@@ -43,12 +62,74 @@ fun descOf(code: Int, fa: Boolean): String = when (code) {
     else -> if (fa) "ابری" else "Cloudy"
 }
 
+val RainIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "RainIcon",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        // Cloud body
+        path(
+            fill = SolidColor(androidx.compose.ui.graphics.Color.Black),
+            fillAlpha = 1.0f,
+            stroke = null,
+            strokeAlpha = 1.0f,
+            strokeLineWidth = 1.0f,
+            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Butt,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Miter,
+            strokeLineMiter = 4.0f,
+            pathFillType = PathFillType.NonZero
+        ) {
+            moveTo(19.35f, 10.04f)
+            curveTo(18.67f, 6.59f, 15.64f, 4.0f, 12.0f, 4.0f)
+            curveTo(9.11f, 4.0f, 6.6f, 5.64f, 5.35f, 8.04f)
+            curveTo(2.34f, 8.36f, 0.0f, 10.91f, 0.0f, 14.0f)
+            curveToRelative(0.0f, 3.31f, 2.69f, 6.0f, 6.0f, 6.0f)
+            horizontalLineToRelative(13.0f)
+            curveToRelative(2.76f, 0.0f, 5.0f, -2.24f, 5.0f, -5.0f)
+            curveToRelative(0.0f, -2.64f, -2.05f, -4.78f, -4.65f, -4.96f)
+            close()
+            moveTo(19.0f, 18.0f)
+            horizontalLineTo(6.0f)
+            curveToRelative(-2.21f, 0.0f, -4.0f, -1.79f, -4.0f, -4.0f)
+            curveToRelative(0.0f, -2.05f, 1.53f, -3.76f, 3.56f, -3.97f)
+            lineToRelative(1.07f, -0.11f)
+            lineToRelative(0.5f, -0.95f)
+            curveTo(8.08f, 7.14f, 9.94f, 6.0f, 12.0f, 6.0f)
+            curveToRelative(2.62f, 0.0f, 4.88f, 1.86f, 5.39f, 4.43f)
+            lineToRelative(0.3f, 1.5f)
+            lineToRelative(1.53f, 0.11f)
+            curveToRelative(1.56f, 0.1f, 2.78f, 1.41f, 2.78f, 2.96f)
+            curveToRelative(0.0f, 1.65f, -1.35f, 3.0f, -3.0f, 3.0f)
+            close()
+            // 3 slanted rain lines underneath
+            moveTo(7.5f, 19.5f)
+            lineTo(5.5f, 23.5f)
+            horizontalLineToRelative(1.5f)
+            lineToRelative(2.0f, -4.0f)
+            close()
+            moveTo(12.5f, 19.5f)
+            lineTo(10.5f, 23.5f)
+            horizontalLineToRelative(1.5f)
+            lineToRelative(2.0f, -4.0f)
+            close()
+            moveTo(17.5f, 19.5f)
+            lineTo(15.5f, 23.5f)
+            horizontalLineToRelative(1.5f)
+            lineToRelative(2.0f, -4.0f)
+            close()
+        }
+    }.build()
+}
+
 fun weatherIcon(code: Int, isDay: Boolean): ImageVector = when (code) {
     0, 1 -> if (isDay) Icons.Outlined.WbSunny else Icons.Outlined.Bedtime
     2 -> Icons.Outlined.CloudQueue
     3 -> Icons.Outlined.Cloud
     45, 48 -> Icons.Outlined.Dehaze
-    in 51..67, in 80..82 -> Icons.Outlined.Grain
+    in 51..67, in 80..82 -> RainIcon
     in 71..77, 85, 86 -> Icons.Outlined.AcUnit
     95, 96, 99 -> Icons.Outlined.FlashOn
     else -> Icons.Outlined.Cloud
@@ -65,14 +146,23 @@ fun emojiOf(code: Int, isDay: Boolean = true): String = when (code) {
     else -> "☁️"
 }
 
-private val CITY_EN = mapOf(
+val CITY_EN = mapOf(
     "تهران" to "Tehran", "مشهد" to "Mashhad", "اصفهان" to "Isfahan",
     "شیراز" to "Shiraz", "تبریز" to "Tabriz", "رشت" to "Rasht",
-    "موقعیت من" to "My location"
+    "اهواز" to "Ahvaz", "قم" to "Qom", "کرمانشاه" to "Kermanshah",
+    "ارومیه" to "Urmia", "زاهدان" to "Zahedan", "کرمان" to "Kerman",
+    "یزد" to "Yazd", "همدان" to "Hamedan", "قزوین" to "Qazvin",
+    "سنندج" to "Sanandaj", "بندرعباس" to "Bandar Abbas", "زنجان" to "Zanjan",
+    "ساری" to "Sari", "بوشهر" to "Bushehr", "گرگان" to "Gorgan",
+    "خرم‌آباد" to "Khorramabad", "اردبیل" to "Ardabil", "اراک" to "Arak",
+    "ایلام" to "Ilam", "یاسوج" to "Yasuj", "شهرکرد" to "Shahrekord",
+    "سمنان" to "Semnan", "بیرجند" to "Birjand", "بجنورد" to "Bojnord",
+    "کیش" to "Kish", "قشم" to "Qeshm", "چابهار" to "Chabahar",
+    "موقعیت من" to "My Location"
 )
 
 fun cityDisplayName(name: String, fa: Boolean): String =
-    if (fa) name else CITY_EN[name] ?: name
+    CityDb.getDisplayName(name, fa)
 
 fun formatDateTime(ts: Long): String {
     val f = java.text.SimpleDateFormat("yyyy/MM/dd HH:mm", java.util.Locale.getDefault())

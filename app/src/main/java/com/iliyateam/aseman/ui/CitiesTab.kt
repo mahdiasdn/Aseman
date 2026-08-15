@@ -1,27 +1,41 @@
 package com.iliyateam.aseman.ui
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -41,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iliyateam.aseman.Prefs
 import com.iliyateam.aseman.WeatherViewModel
+import com.iliyateam.aseman.faDigits
 import com.iliyateam.aseman.t
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -81,24 +96,51 @@ fun CitiesTab(
     }
 
     Column(
-        Modifier.fillMaxSize().padding(pad).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(pad)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Modern Search Box
         TextField(
             value = query,
             onValueChange = { q ->
                 query = q
                 job?.cancel()
                 job = scope.launch {
-                    delay(400)
+                    delay(350)
                     vm.search(q, if (faLang) "fa" else "en")
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(prefs.t("search_ph")) },
-            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            placeholder = {
+                Text(
+                    text = prefs.t("search_ph"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            trailingIcon = {
+                AnimatedVisibility(visible = query.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
+                    IconButton(onClick = { query = ""; vm.clearSearch() }) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
             singleLine = true,
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -109,30 +151,133 @@ fun CitiesTab(
 
         if (query.trim().length >= 2) {
             if (results.isEmpty()) {
-                Text(if (vpn) prefs.t("vpn_hint") else prefs.t("no_result"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (vpn) prefs.t("vpn_hint") else prefs.t("no_result"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(results) { r ->
-                        CityRow(r.name, onClick = {
-                            vm.load(r.latitude, r.longitude, r.name)
-                            query = ""
-                            onCitySelected()
-                        })
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    item {
+                        Text(
+                            text = if (faLang) "نتایج جستجو" else "Search Results",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                    items(
+                        items = results,
+                        key = { "${it.latitude},${it.longitude}_${it.name}" }
+                    ) { r ->
+                        ModernCityCard(
+                            name = r.name,
+                            onClick = {
+                                vm.load(r.latitude, r.longitude, r.name)
+                                query = ""
+                                onCitySelected()
+                            }
+                        )
                     }
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                // Section: Favorites
                 item {
-                    Text(prefs.t("favorites"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Favorite,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = prefs.t("favorites"),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (favs.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = "${favs.size}".faDigits(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                 }
+
                 if (favs.isEmpty()) {
-                    item { Text(prefs.t("no_fav"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = prefs.t("no_fav"),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 } else {
-                    items(favs) { f ->
-                        CityRow(
-                            name = f.third,
-                            onClick = { vm.load(f.first, f.second, f.third); onCitySelected() },
+                    items(
+                        items = favs,
+                        key = { "${it.first},${it.second}" }
+                    ) { f ->
+                        ModernCityCard(
+                            name = com.iliyateam.aseman.cityDisplayName(f.third, faLang),
+                            isFavorite = true,
+                            onClick = {
+                                vm.load(f.first, f.second, f.third)
+                                onCitySelected()
+                            },
                             onDelete = {
                                 vm.toggleFav(f.first, f.second, f.third) { msg ->
                                     Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
@@ -142,25 +287,58 @@ fun CitiesTab(
                     }
                 }
 
+                // Section: All / Default Cities
                 item {
-                    Text(
-                        prefs.t("all_cities"),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocationCity,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = prefs.t("all_cities"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-                items(DEFAULT_CITIES.filterNot { hidden.contains(it.fa) }) { c ->
-                    CityRow(
+
+                items(
+                    items = DEFAULT_CITIES.filterNot { hidden.contains(it.fa) },
+                    key = { it.fa }
+                ) { c ->
+                    ModernCityCard(
                         name = if (faLang) c.fa else c.en,
-                        onClick = { vm.load(c.lat, c.lon, if (faLang) c.fa else c.en); onCitySelected() },
+                        onClick = {
+                            vm.load(c.lat, c.lon, if (faLang) c.fa else c.en)
+                            onCitySelected()
+                        },
                         onDelete = { vm.hideDefault(c.fa) }
                     )
                 }
+
                 if (hidden.isNotEmpty()) {
                     item {
-                        TextButton(onClick = { vm.restoreDefaults() }) {
-                            Text(prefs.t("restore"))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            OutlinedButton(
+                                onClick = { vm.restoreDefaults() },
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text(prefs.t("restore"))
+                            }
                         }
                     }
                 }
@@ -170,28 +348,74 @@ fun CitiesTab(
 }
 
 @Composable
-private fun CityRow(name: String, onClick: () -> Unit, onDelete: (() -> Unit)? = null) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+private fun ModernCityCard(
+    name: String,
+    subtitle: String? = null,
+    isFavorite: Boolean = false,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
         Row(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
-                Modifier
-                    .weight(1f)
-                    .clickable(onClick = onClick)
-                    .padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
-                Text(name, fontWeight = FontWeight.Bold)
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Column {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
+
             if (onDelete != null) {
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Remove, null, tint = MaterialTheme.colorScheme.error)
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }

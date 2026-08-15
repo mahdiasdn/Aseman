@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.WbSunny
@@ -86,6 +87,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            val syncPref = getSharedPreferences("settings_sync", android.content.Context.MODE_PRIVATE)
+            val savedLang = syncPref.getString("lang", "fa") ?: "fa"
+            val loc = if (savedLang == "fa") java.util.Locale("fa", "IR") else java.util.Locale.ENGLISH
+            java.util.Locale.setDefault(loc)
+            val config = resources.configuration
+            config.setLocale(loc)
+            config.setLayoutDirection(loc)
+            resources.updateConfiguration(config, resources.displayMetrics)
+        } catch (_: Exception) {
+        }
+
         enableEdgeToEdge()
 
         setContent {
@@ -148,8 +161,17 @@ fun Root() {
             loadedLang != null &&
             prefs.lang != loadedLang
         ) {
-            delay(250)
-            (ctx as? ComponentActivity)?.recreate()
+            delay(100)
+            val intent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            if (intent != null) {
+                ctx.startActivity(intent)
+                (ctx as? ComponentActivity)?.finishAffinity()
+                Runtime.getRuntime().exit(0)
+            } else {
+                (ctx as? ComponentActivity)?.recreate()
+            }
         }
     }
 
@@ -248,6 +270,10 @@ fun MainScaffold(prefs: Prefs) {
     )
 
     var showAboutDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showCompareDialog by remember {
         mutableStateOf(false)
     }
 
@@ -353,6 +379,27 @@ fun MainScaffold(prefs: Prefs) {
                 NavigationDrawerItem(
                     icon = {
                         Icon(
+                            Icons.Outlined.CompareArrows,
+                            null
+                        )
+                    },
+                    label = {
+                        Text(
+                            prefs.t("compare_cities")
+                        )
+                    },
+                    selected = false,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                        }
+                        showCompareDialog = true
+                    }
+                )
+
+                NavigationDrawerItem(
+                    icon = {
+                        Icon(
                             Icons.Filled.Info,
                             null
                         )
@@ -418,7 +465,7 @@ fun MainScaffold(prefs: Prefs) {
                         ) {
                             Icon(
                                 Icons.Filled.Menu,
-                                contentDescription = "منو"
+                                contentDescription = if (prefs.lang == "fa") "منو" else "Menu"
                             )
                         }
                     },
@@ -585,6 +632,12 @@ fun MainScaffold(prefs: Prefs) {
     if (showAboutDialog) {
         AboutDialog(prefs) {
             showAboutDialog = false
+        }
+    }
+
+    if (showCompareDialog) {
+        com.iliyateam.aseman.ui.CityCompareDialog(prefs) {
+            showCompareDialog = false
         }
     }
 }

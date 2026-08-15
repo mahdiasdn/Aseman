@@ -1,21 +1,29 @@
 package com.iliyateam.aseman.ui
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FormatSize
@@ -28,10 +36,14 @@ import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationCity
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Power
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,11 +66,29 @@ import androidx.compose.ui.unit.sp
 import com.iliyateam.aseman.BuildConfig
 import com.iliyateam.aseman.CityDb
 import com.iliyateam.aseman.Prefs
+import com.iliyateam.aseman.faDigits
 import com.iliyateam.aseman.openAutoStart
 import com.iliyateam.aseman.openBatterySettings
 import com.iliyateam.aseman.openMyket
 import com.iliyateam.aseman.openUrl
 import com.iliyateam.aseman.t
+
+fun restartApp(context: Context) {
+    try {
+        val pm = context.packageManager
+        val intent = pm.getLaunchIntentForPackage(context.packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        if (intent != null) {
+            context.startActivity(intent)
+            (context as? android.app.Activity)?.finishAffinity()
+        } else {
+            (context as? android.app.Activity)?.recreate()
+        }
+    } catch (_: Exception) {
+        (context as? android.app.Activity)?.recreate()
+    }
+}
 
 @Composable
 fun SettingsScreen(
@@ -66,7 +96,7 @@ fun SettingsScreen(
     pad: PaddingValues
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-
+    val isFa = prefs.lang == "fa"
 
     var dialog by remember {
         mutableStateOf<String?>(null)
@@ -85,218 +115,176 @@ fun SettingsScreen(
     }
 
     Column(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
             .padding(pad)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SettingRow(
-            Icons.Filled.Language,
-            prefs.t("language"),
-            if (prefs.lang == "fa") "فارسی" else "English"
-        ) {
-            dialog = "lang"
-        }
-
-        SettingRow(
-            Icons.Filled.DarkMode,
-            prefs.t("mode"),
-            prefs.t(prefs.mode)
-        ) {
-            dialog = "mode"
-        }
-
-        SettingRow(
-            Icons.Filled.Palette,
-            prefs.t("accent"),
-            prefs.t(prefs.accent)
-        ) {
-            dialog = "accent"
-        }
-
-        SettingRow(
-            Icons.Filled.TextFields,
-            prefs.t("font"),
-            if (prefs.font == "vazir") {
-                prefs.t("vazir_font")
-            } else {
-                prefs.t("default_font")
-            }
-        ) {
-            dialog = "font"
-        }
-
-        SettingRow(
-            Icons.Filled.FormatSize,
-            prefs.t("font_size"),
-            "×${prefs.fontScale.toString().take(4)}"
-        ) {
-            dialog = "size"
-        }
-
-        SettingRow(
-            Icons.Filled.Straighten,
-            prefs.t("units"),
-            buildString {
-                append(
-                    if (prefs.uTemp == "f") {
-                        "°F"
-                    } else {
-                        "°C"
-                    }
-                )
-                append(" • ")
-                append(prefs.windLabel())
-                append(" • ")
-                append(prefs.precipitationLabel())
-                append(" • ")
-                append(prefs.distanceLabel())
-            }
-        ) {
-            dialog = "units"
-        }
-
-        SettingRow(
-            Icons.Filled.Update,
-            prefs.t("refresh"),
-            when (prefs.refresh) {
-                "0" -> prefs.t("off")
-                "15" -> prefs.t("min15")
-                "30" -> prefs.t("min30")
-                "60" -> prefs.t("min60")
-                "120" -> prefs.t("min120")
-                "240" -> prefs.t("min240")
-                "360" -> prefs.t("min360")
-                "720" -> prefs.t("min720")
-                "1440" -> prefs.t("min1440")
-                else -> prefs.t("min30")
-            }
-        ) {
-            dialog = "refresh"
-        }
-
-        ElevatedCard(
-            Modifier.fillMaxWidth()
-        ) {
-            Row(
-                Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    Icons.Outlined.Notifications,
-                    null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    prefs.t("alerts"),
-                    Modifier.weight(1f),
-                    fontWeight = FontWeight.Bold
-                )
-
-                Switch(
-                    checked = prefs.alerts == "1",
-                    onCheckedChange = {
-                        prefs.changeAlerts(
-                            if (it) "1" else "0"
-                        )
-                    }
-                )
-            }
-        }
-
-        SettingRow(
-            Icons.Outlined.BatteryChargingFull,
-            prefs.t("bg_keep"),
-            prefs.t("bg_keep_desc")
-        ) {
-            openBatterySettings(ctx)
-        }
-
-        SettingRow(
-            Icons.Outlined.Power,
-            prefs.t("autostart"),
-            prefs.t("autostart_desc")
-        ) {
-            openAutoStart(ctx)
-        }
-
-        SettingRow(
-            Icons.Outlined.LocationCity,
-            prefs.t("notif_city"),
-            if (prefs.notifCity.isEmpty()) {
-                prefs.t("follow_app")
-            } else {
-                prefs.notifCity
-                    .split("|")
-                    .getOrNull(2)
-                    ?: prefs.t("follow_app")
-            }
-        ) {
-            cityDialog = true
-        }
-
-        SettingRow(
-            Icons.Filled.Palette,
-            prefs.t("widget_bg"),
-            prefs.t(prefs.widgetBg)
-        ) {
-            val nv =
-                if (prefs.widgetBg == "trans") {
-                    "solid"
-                } else {
-                    "trans"
-                }
-
-            prefs.changeWidgetBg(nv)
-
-            ctx.getSharedPreferences(
-                "widget",
-                Context.MODE_PRIVATE
+        // Group 1: Appearance & Theme
+        SettingsSectionHeader(
+            icon = Icons.Outlined.Palette,
+            title = if (isFa) "ظاهر و پوسته" else "Appearance & Style"
+        )
+        SettingsGroupCard {
+            ModernSettingRow(
+                icon = Icons.Filled.Language,
+                title = prefs.t("language"),
+                value = if (prefs.lang == "fa") "فارسی" else "English",
+                onClick = { dialog = "lang" }
             )
-                .edit()
-                .putString("bg", nv)
-                .apply()
-
-            val ids =
-                android.appwidget.AppWidgetManager
-                    .getInstance(ctx)
-                    .getAppWidgetIds(
-                        android.content.ComponentName(
-                            ctx,
-                            com.iliyateam.aseman.WeatherWidgetProvider::class.java
-                        )
-                    )
-
-            if (ids.isNotEmpty()) {
-                ctx.sendBroadcast(
-                    android.content.Intent(
-                        ctx,
-                        com.iliyateam.aseman.WeatherWidgetProvider::class.java
-                    )
-                        .setAction(
-                            android.appwidget.AppWidgetManager
-                                .ACTION_APPWIDGET_UPDATE
-                        )
-                        .putExtra(
-                            android.appwidget.AppWidgetManager
-                                .EXTRA_APPWIDGET_IDS,
-                            ids
-                        )
-                )
-            }
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.DarkMode,
+                title = prefs.t("mode"),
+                value = prefs.t(prefs.mode),
+                onClick = { dialog = "mode" }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = prefs.t("theme_style"),
+                value = if (prefs.themeStyle == "dynamic") prefs.t("style_dynamic") else prefs.t("style_classic"),
+                onClick = { dialog = "theme_style" }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.Palette,
+                title = prefs.t("accent"),
+                value = prefs.t(prefs.accent),
+                onClick = { dialog = "accent" }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.TextFields,
+                title = prefs.t("font"),
+                value = if (prefs.font == "vazir") prefs.t("vazir_font") else prefs.t("default_font"),
+                onClick = { dialog = "font" }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.FormatSize,
+                title = prefs.t("font_size"),
+                value = "×${prefs.fontScale.toString().take(4)}".faDigits(),
+                onClick = { dialog = "size" }
+            )
         }
 
-        SettingRow(
-            Icons.Outlined.Info,
-            prefs.t("about_app"),
-            prefs.t("developer")
-        ) {
-            aboutDialog = true
+        // Group 2: Units & Auto Refresh
+        SettingsSectionHeader(
+            icon = Icons.Outlined.Tune,
+            title = if (isFa) "واحدها و بروزرسانی" else "Units & Updates"
+        )
+        SettingsGroupCard {
+            ModernSettingRow(
+                icon = Icons.Filled.Straighten,
+                title = prefs.t("units"),
+                value = buildString {
+                    append(if (prefs.uTemp == "f") "°F" else "°C")
+                    append(" • ")
+                    append(prefs.windLabel())
+                    append(" • ")
+                    append(prefs.precipitationLabel())
+                },
+                onClick = { dialog = "units" }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.Update,
+                title = prefs.t("refresh"),
+                value = when (prefs.refresh) {
+                    "0" -> prefs.t("off")
+                    "15" -> prefs.t("min15")
+                    "30" -> prefs.t("min30")
+                    "60" -> prefs.t("min60")
+                    "120" -> prefs.t("min120")
+                    "240" -> prefs.t("min240")
+                    "360" -> prefs.t("min360")
+                    "720" -> prefs.t("min720")
+                    "1440" -> prefs.t("min1440")
+                    else -> prefs.t("min30")
+                },
+                onClick = { dialog = "refresh" }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Outlined.Notifications,
+                title = prefs.t("alerts"),
+                trailing = {
+                    Switch(
+                        checked = prefs.alerts == "1",
+                        onCheckedChange = { prefs.changeAlerts(if (it) "1" else "0") }
+                    )
+                }
+            )
         }
+
+        // Group 3: System & Widget
+        SettingsSectionHeader(
+            icon = Icons.Outlined.Widgets,
+            title = if (isFa) "سیستم و ویجت" else "System & Widget"
+        )
+        SettingsGroupCard {
+            ModernSettingRow(
+                icon = Icons.Outlined.BatteryChargingFull,
+                title = prefs.t("bg_keep"),
+                value = prefs.t("bg_keep_desc"),
+                onClick = { openBatterySettings(ctx) }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Outlined.Power,
+                title = prefs.t("autostart"),
+                value = prefs.t("autostart_desc"),
+                onClick = { openAutoStart(ctx) }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Outlined.LocationCity,
+                title = prefs.t("notif_city"),
+                value = if (prefs.notifCity.isEmpty()) prefs.t("follow_app") else prefs.notifCity.split("|").getOrNull(2) ?: prefs.t("follow_app"),
+                onClick = { cityDialog = true }
+            )
+            SettingsDivider()
+            ModernSettingRow(
+                icon = Icons.Filled.Palette,
+                title = prefs.t("widget_bg"),
+                value = prefs.t(prefs.widgetBg),
+                onClick = {
+                    val nv = if (prefs.widgetBg == "trans") "solid" else "trans"
+                    prefs.changeWidgetBg(nv)
+                    ctx.getSharedPreferences("widget", Context.MODE_PRIVATE).edit().putString("bg", nv).apply()
+
+                    val ids = android.appwidget.AppWidgetManager.getInstance(ctx).getAppWidgetIds(
+                        android.content.ComponentName(ctx, com.iliyateam.aseman.WeatherWidgetProvider::class.java)
+                    )
+                    if (ids.isNotEmpty()) {
+                        ctx.sendBroadcast(
+                            android.content.Intent(ctx, com.iliyateam.aseman.WeatherWidgetProvider::class.java)
+                                .setAction(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                                .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                        )
+                    }
+                }
+            )
+        }
+
+        // Group 4: About
+        SettingsSectionHeader(
+            icon = Icons.Outlined.Info,
+            title = if (isFa) "درباره برنامه" else "About"
+        )
+        SettingsGroupCard {
+            ModernSettingRow(
+                icon = Icons.Outlined.Info,
+                title = prefs.t("about_app"),
+                value = prefs.t("developer"),
+                onClick = { aboutDialog = true }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 
     when (dialog) {
@@ -308,8 +296,11 @@ fun SettingsScreen(
                     "en" to "English"
                 ),
                 prefs.lang,
-                {
-                    prefs.changeLang(it)
+                { newLang ->
+                    if (newLang != prefs.lang) {
+                        prefs.changeLang(newLang)
+                        restartApp(ctx)
+                    }
                 }
             ) {
                 dialog = null
@@ -328,6 +319,22 @@ fun SettingsScreen(
                 prefs.mode,
                 {
                     prefs.changeMode(it)
+                }
+            ) {
+                dialog = null
+            }
+        }
+
+        "theme_style" -> {
+            OptionDialog(
+                prefs.t("theme_style"),
+                listOf(
+                    "classic" to prefs.t("style_classic"),
+                    "dynamic" to prefs.t("style_dynamic")
+                ),
+                prefs.themeStyle,
+                {
+                    prefs.changeThemeStyle(it)
                 }
             ) {
                 dialog = null
@@ -488,52 +495,121 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingRow(
+private fun SettingsSectionHeader(
+    icon: ImageVector,
+    title: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun SettingsGroupCard(
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+        modifier = Modifier.padding(start = 58.dp, end = 16.dp)
+    )
+}
+
+@Composable
+private fun ModernSettingRow(
     icon: ImageVector,
     title: String,
-    value: String,
-    onClick: () -> Unit
+    value: String? = null,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
 ) {
-    ElevatedCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
-            Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f)
         ) {
-            Icon(
-                icon,
-                null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-
-            Column(
-                Modifier.weight(1f)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                modifier = Modifier.size(36.dp)
             ) {
-                Text(
-                    title,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    value,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (!value.isNullOrBlank()) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        if (trailing != null) {
+            trailing()
+        } else if (onClick != null) {
             Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp)
             )
         }
     }
-
-
 }
 
 @Composable
@@ -720,32 +796,43 @@ private fun FontSizeDialog(
     prefs: Prefs,
     onDismiss: () -> Unit
 ) {
+    val isFa = prefs.lang == "fa"
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                prefs.t("font_size"),
+                text = prefs.t("font_size"),
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             Column(
-                horizontalAlignment =
-                    Alignment.CenterHorizontally,
-                verticalArrangement =
-                    Arrangement.spacedBy(18.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                Text(
-                    "آسمان ☀️",
-                    fontSize =
-                        (26 * prefs.fontScale).sp,
-                    fontWeight = FontWeight.Bold
-                )
-
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isFa) "آسمان ☀️" else "Aseman ☀️",
+                            fontSize = (24 * prefs.fontScale).sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
                 Row(
-                    horizontalArrangement =
-                        Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     listOf(
                         0.85f to "size_s",
@@ -753,38 +840,37 @@ private fun FontSizeDialog(
                         1.15f to "size_l",
                         1.3f to "size_xl"
                     ).forEach { (s, k) ->
-                        FilterChip(
-                            selected =
-                                prefs.fontScale == s,
-                            onClick = {
-                                prefs.changeScale(s)
-                            },
-                            label = {
+                        val selected = prefs.fontScale == s
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { prefs.changeScale(s) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    prefs.t(k)
+                                    text = prefs.t(k),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                        )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text(
-                    if (prefs.lang == "fa") {
-                        "باشه"
-                    } else {
-                        "OK"
-                    }
-                )
+            TextButton(onClick = onDismiss) {
+                Text(if (isFa) "باشه" else "OK")
             }
         }
     )
-
-
 }
 
 @Composable
@@ -981,7 +1067,7 @@ fun AboutDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "آسمان ☁️",
+                if (prefs.lang == "fa") "آسمان ☁️" else "Aseman ☁️",
                 fontWeight = FontWeight.Bold
             )
         },

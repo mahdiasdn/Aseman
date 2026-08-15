@@ -291,6 +291,9 @@ interface WeatherApi {
         @Query("timezone")
         timezone: String = "auto",
 
+        @Query("forecast_days")
+        forecastDays: Int = 14,
+
         @Query("temperature_unit")
         temperatureUnit: String = "celsius",
 

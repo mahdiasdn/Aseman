@@ -1,15 +1,19 @@
 package com.iliyateam.aseman.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.core.view.WindowCompat
 import com.iliyateam.aseman.Prefs
 import com.iliyateam.aseman.R
 
@@ -86,6 +90,16 @@ fun AsanTheme(prefs: Prefs, content: @Composable () -> Unit) {
             surfaceContainerHigh = Color(0xFF111111),
             surfaceContainerHighest = Color(0xFF161616)
         ) else scheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !dark
+            insetsController.isAppearanceLightNavigationBars = !dark
+        }
     }
 
     MaterialTheme(

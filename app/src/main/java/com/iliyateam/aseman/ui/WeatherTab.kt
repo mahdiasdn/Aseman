@@ -4,6 +4,12 @@ import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.EaseInOutCubic
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +32,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
@@ -40,15 +48,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import com.iliyateam.aseman.next24
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
+import com.iliyateam.aseman.next24
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -97,13 +108,9 @@ fun WeatherTab(prefs: Prefs, pad: PaddingValues, vm: WeatherViewModel = viewMode
     ) {
         Box(Modifier.fillMaxSize()) {
             when (val s = state) {
-                is WeatherViewModel.State.Loading ->
-                    Box(
-                        Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                is WeatherViewModel.State.Loading -> {
+                    ModernLaunchLoadingView(prefs)
+                }
 
                 is WeatherViewModel.State.Error ->
                     Box(
@@ -126,8 +133,13 @@ fun WeatherTab(prefs: Prefs, pad: PaddingValues, vm: WeatherViewModel = viewMode
                         }
                     }
 
-                is WeatherViewModel.State.Success ->
-                    WeatherBody(s, prefs, vm, ctx)
+                is WeatherViewModel.State.Success -> {
+                    if (prefs.themeStyle == "dynamic") {
+                        com.iliyateam.aseman.ui.modern.ModernWeatherScreen(s, prefs, vm, ctx)
+                    } else {
+                        WeatherBody(s, prefs, vm, ctx)
+                    }
+                }
             }
         }
     }
@@ -154,6 +166,8 @@ private fun WeatherBody(
             (fav.first * 1000).toInt() == targetLat && (fav.second * 1000).toInt() == targetLon
         }
     }
+
+    var showAllDays by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -267,16 +281,28 @@ private fun WeatherBody(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        /* هفتگی */
+
+        item {
+            LifestyleCard(
+                data = d,
+                air = s.air,
+                prefs = prefs
+            )
+        }
+
+        /* پیش‌بینی روزانه (تا ۱۴ روز) */
         item {
             Text(
-                prefs.t("next7"),
+                if (prefs.lang == "fa") "پیش‌بینی روزانه" else "Daily Forecast",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        items(d.daily.time.size) { i ->
+        val totalDays = d.daily.time.size
+        val countToShow = if (showAllDays) totalDays else minOf(7, totalDays)
+
+        items(countToShow) { i ->
             ElevatedCard(Modifier.fillMaxWidth()) {
                 Row(
                     Modifier.padding(
@@ -321,6 +347,41 @@ private fun WeatherBody(
                         "${d.daily.max[i].toInt()}°",
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+
+        if (totalDays > 7) {
+            item {
+                Surface(
+                    onClick = { showAllDays = !showAllDays },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (showAllDays) {
+                                if (prefs.lang == "fa") "نمایش کمتر" else "Show Less"
+                            } else {
+                                if (prefs.lang == "fa") "مشاهده پیش‌بینی ۱۴ روزه" else "Show 14-Day Forecast"
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            imageVector = if (showAllDays) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -746,6 +807,84 @@ private fun TempChart(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ModernLaunchLoadingView(prefs: Prefs) {
+    val isFa = prefs.lang == "fa"
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(32.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                modifier = Modifier
+                    .size(100.dp)
+                    .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = weatherIcon(0, true),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(54.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = if (isFa) "آسمان" else "Aseman",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = if (isFa) "در حال دریافت اطلاعات آب و هوا..." else "Loading weather data...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            CircularProgressIndicator(
+                modifier = Modifier.size(36.dp),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 3.5.dp
+            )
         }
     }
 }

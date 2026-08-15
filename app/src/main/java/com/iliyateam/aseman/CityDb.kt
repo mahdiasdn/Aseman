@@ -77,6 +77,33 @@ object CityDb {
         return list.take(8)
     }
 
+    fun getDisplayName(name: String, fa: Boolean): String {
+        val t = name.trim()
+        if (t.isEmpty()) return name
+
+        if (t == "موقعیت من" || t.equals("My location", ignoreCase = true) || t.equals("My Location", ignoreCase = true)) {
+            return if (fa) "موقعیت من" else "My Location"
+        }
+
+        val city = list.find {
+            it.fa.equals(t, ignoreCase = true) ||
+            it.en.equals(t, ignoreCase = true) ||
+            normalizeText(it.fa) == normalizeText(t)
+        }
+
+        if (city != null) {
+            return if (fa) city.fa else city.en
+        }
+
+        val fallback = CITY_EN[t]
+        if (!fa && fallback != null) return fallback
+
+        val reverseFallback = CITY_EN.entries.find { it.value.equals(t, ignoreCase = true) }?.key
+        if (fa && reverseFallback != null) return reverseFallback
+
+        return t
+    }
+
     private fun normalizeText(s: String): String {
         return s.replace('ي', 'ی')
             .replace('ك', 'ک')

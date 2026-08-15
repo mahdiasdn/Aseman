@@ -44,11 +44,14 @@ class Prefs(context: Context) {
     var alerts by mutableStateOf("1"); private set
     var notifCity by mutableStateOf(""); private set
     var widgetBg by mutableStateOf("trans"); private set
+    var themeStyle by mutableStateOf("dynamic"); private set
 
     suspend fun load() {
+        val syncPref = context.getSharedPreferences("settings_sync", Context.MODE_PRIVATE)
+        val syncLang = syncPref.getString("lang", null)
         val p = context.dataStore.data.first()
 
-        lang = p[KEY_LANG] ?: "fa"
+        lang = syncLang ?: p[KEY_LANG] ?: "fa"
         mode = p[KEY_MODE] ?: "auto"
         accent = p[KEY_ACCENT] ?: "auto"
         font = p[KEY_FONT] ?: "vazir"
@@ -61,12 +64,17 @@ class Prefs(context: Context) {
         alerts = p[KEY_ALERTS] ?: "1"
         notifCity = p[KEY_NOTIF_CITY] ?: ""
         widgetBg = p[KEY_WIDGET_BG] ?: "trans"
+        themeStyle = p[KEY_THEME_STYLE] ?: "dynamic"
 
         applyLocale()
     }
 
     fun changeLang(v: String) {
         lang = v
+        context.getSharedPreferences("settings_sync", Context.MODE_PRIVATE)
+            .edit()
+            .putString("lang", v)
+            .commit()
         save(KEY_LANG, v)
         applyLocale()
     }
@@ -129,6 +137,11 @@ class Prefs(context: Context) {
     fun changeWidgetBg(v: String) {
         widgetBg = v
         save(KEY_WIDGET_BG, v)
+    }
+
+    fun changeThemeStyle(v: String) {
+        themeStyle = v
+        save(KEY_THEME_STYLE, v)
     }
 
     fun tempSuffix(): String =
@@ -245,6 +258,9 @@ class Prefs(context: Context) {
 
         val KEY_WIDGET_BG =
             stringPreferencesKey("widget_bg")
+
+        val KEY_THEME_STYLE =
+            stringPreferencesKey("theme_style")
     }
 
 
@@ -338,12 +354,21 @@ private val FA = mapOf(
     "version" to "نسخه",
     "editor_line" to "ویرایش و عرضه: [MightyMahdi]",
     "github" to "سورس‌کد در گیت‌هاب",
+    "compare_cities" to "مقایسه آب‌وهوای شهرها",
+    "theme_style" to "پوسته و سبک برنامه",
+    "style_dynamic" to "مدرن (پیش‌فرض)",
+    "style_classic" to "کلاسیک",
 )
 
 private val EN = mapOf(
     "tab_weather" to "Weather",
     "tab_cities" to "Cities",
     "tab_settings" to "Settings",
+    "compare_cities" to "Compare Cities",
+    "theme_style" to "App Visual Style",
+    "style_dynamic" to "Modern Bento (Default)",
+    "style_classic" to "Classic",
+    "style_dynamic_desc" to "Smart sky backdrops & glassmorphic cards based on weather",
     "search_ph" to "Search cities worldwide…",
     "no_result" to "No results",
     "now" to "Now",
