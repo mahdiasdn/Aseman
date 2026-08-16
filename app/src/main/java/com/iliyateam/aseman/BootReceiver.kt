@@ -17,6 +17,15 @@ class BootReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.Default).launch {
             try {
                 RefreshScheduler.schedule(context.applicationContext)
+                try {
+                    val serviceIntent = Intent(context, RefreshService::class.java)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
+                } catch (_: Throwable) {
+                }
             } finally {
                 pendingResult.finish()
             }

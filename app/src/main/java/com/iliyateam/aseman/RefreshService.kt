@@ -46,19 +46,20 @@ class RefreshService : Service() {
         createChannel()
 
         try {
+            val initialNotif = initialNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
-                    NOTIFICATION_ID,
-                    placeholder(),
+                    WEATHER_NOTIFICATION_ID,
+                    initialNotif,
                     android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                 )
             } else {
                 startForeground(
-                    NOTIFICATION_ID,
-                    placeholder()
+                    WEATHER_NOTIFICATION_ID,
+                    initialNotif
                 )
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
 
             Log.e(
                 TAG,
@@ -70,8 +71,7 @@ class RefreshService : Service() {
                 "ForegroundStart: ${e.javaClass.simpleName}: ${e.message}"
             )
 
-            stopSelfResult(startId)
-            return START_NOT_STICKY
+            return START_STICKY
         }
 
         scope.launch {
@@ -225,25 +225,34 @@ class RefreshService : Service() {
                     ) as NotificationManager
 
                 try {
-                    nm.notify(
-                        WEATHER_NOTIFICATION_ID,
-                        buildNotification(
-                            city = city,
-                            temp = c.temp.toInt(),
-                            desc = desc,
-                            todayMax = todayMax,
-                            todayMin = todayMin,
-                            feels = feels,
-                            pop = pop,
-                            humidity = humidity,
-                            windSpeed = c.wind.toInt(),
-                            windUnit = windUnitLabel,
-                            uvIndex = uvIndex,
-                            emoji = emoji,
-                            isFa = isFa
-                        )
+                    val notif = buildNotification(
+                        city = city,
+                        temp = c.temp.toInt(),
+                        desc = desc,
+                        todayMax = todayMax,
+                        todayMin = todayMin,
+                        feels = feels,
+                        pop = pop,
+                        humidity = humidity,
+                        windSpeed = c.wind.toInt(),
+                        windUnit = windUnitLabel,
+                        uvIndex = uvIndex,
+                        emoji = emoji,
+                        isFa = isFa
                     )
-                } catch (e: Exception) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(
+                            WEATHER_NOTIFICATION_ID,
+                            notif,
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                        )
+                    } else {
+                        startForeground(
+                            WEATHER_NOTIFICATION_ID,
+                            notif
+                        )
+                    }
+                } catch (e: Throwable) {
                     Log.e(
                         TAG,
                         "Failed to post weather notification",
@@ -351,12 +360,10 @@ class RefreshService : Service() {
                     TAG,
                     "Refresh service finished"
                 )
-
-                stopSelfResult(startId)
             }
         }
 
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
@@ -410,13 +417,42 @@ class RefreshService : Service() {
         }
     }
 
+    private fun initialNotification(): android.app.Notification {
+        val sp = getSharedPreferences("widget", Context.MODE_PRIVATE)
+        val city = sp.getString("city", "") ?: ""
+        val temp = sp.getString("temp", "")?.replace("°", "")?.toIntOrNull()
+        val desc = sp.getString("desc", "") ?: ""
+        val emoji = sp.getString("emoji", "☁️") ?: "☁️"
+        val maxTemp = sp.getString("max_temp", "")?.replace("▲", "")?.replace("°", "")?.trim()?.toIntOrNull() ?: temp ?: 20
+        val minTemp = sp.getString("min_temp", "")?.replace("▼", "")?.replace("°", "")?.trim()?.toIntOrNull() ?: temp ?: 20
+
+        if (city.isNotBlank() && temp != null && desc.isNotBlank()) {
+            return buildNotification(
+                city = city,
+                temp = temp,
+                desc = desc,
+                todayMax = maxTemp,
+                todayMin = minTemp,
+                feels = temp,
+                pop = 0,
+                humidity = 0,
+                windSpeed = 0,
+                windUnit = "km/h",
+                uvIndex = 0.0,
+                emoji = emoji,
+                isFa = true
+            )
+        }
+        return placeholder()
+    }
+
     private fun placeholder() =
         NotificationCompat.Builder(
             this,
             "weather"
         )
             .setSmallIcon(
-                R.drawable.aseman_icon
+                R.drawable.ic_stat_aseman
             )
             .setContentTitle(
                 "آسمان"
@@ -424,22 +460,14 @@ class RefreshService : Service() {
             .setContentText(
                 "در حال بروزرسانی…"
             )
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setSilent(true)
             .build()
-
-    private fun emojiIcon(emoji: String): androidx.core.graphics.drawable.IconCompat {
-        val size = 96
-        val b = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
-        val cv = android.graphics.Canvas(b)
-        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-        p.textSize = 72f
-        p.textAlign = android.graphics.Paint.Align.CENTER
-        val r = android.graphics.Rect()
-        p.getTextBounds(emoji, 0, emoji.length, r)
-        cv.drawText(emoji, size / 2f, size / 2f - r.exactCenterY(), p)
-        return androidx.core.graphics.drawable.IconCompat.createWithBitmap(b)
-    }
+            .also {
+                it.flags = it.flags or android.app.Notification.FLAG_ONGOING_EVENT or android.app.Notification.FLAG_NO_CLEAR
+            }
 
     private fun buildNotification(
         city: String,
@@ -505,13 +533,26 @@ class RefreshService : Service() {
             openIntent
         ).build()
 
-        return NotificationCompat.Builder(this, "weather")
-            .setSmallIcon(emojiIcon(emoji))
+        val largeIconBitmap = try {
+            android.graphics.BitmapFactory.decodeResource(resources, R.drawable.aseman_icon)
+        } catch (_: Exception) {
+            null
+        }
+
+        val notif = NotificationCompat.Builder(this, "weather")
+            .setSmallIcon(R.drawable.ic_stat_aseman)
+            .apply {
+                if (largeIconBitmap != null) {
+                    setLargeIcon(largeIconBitmap)
+                }
+            }
             .setContentTitle(title)
             .setContentText(summary)
             .setSubText(if (isFa) "آسمان" else "Aseman")
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setColor(0xFF0284C7.toInt())
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
             .setSilent(true)
@@ -522,6 +563,9 @@ class RefreshService : Service() {
             .addAction(refreshAction)
             .addAction(openAction)
             .build()
+
+        notif.flags = notif.flags or android.app.Notification.FLAG_ONGOING_EVENT or android.app.Notification.FLAG_NO_CLEAR
+        return notif
     }
 
 

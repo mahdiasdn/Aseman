@@ -55,24 +55,33 @@ class WeatherWorker(
         val emoji = sp.getString("emoji", "☁️") ?: "☁️"
 
         createChannel()
-        return androidx.work.ForegroundInfo(
-            100,
-            buildNotification(
-                city = city,
-                temp = temp,
-                desc = desc,
-                todayMax = temp,
-                todayMin = temp,
-                feels = temp,
-                pop = 0,
-                humidity = 0,
-                windSpeed = 0,
-                windUnit = "km/h",
-                uvIndex = 0.0,
-                emoji = emoji,
-                isFa = true
-            )
+        val notif = buildNotification(
+            city = city,
+            temp = temp,
+            desc = desc,
+            todayMax = temp,
+            todayMin = temp,
+            feels = temp,
+            pop = 0,
+            humidity = 0,
+            windSpeed = 0,
+            windUnit = "km/h",
+            uvIndex = 0.0,
+            emoji = emoji,
+            isFa = true
         )
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            androidx.work.ForegroundInfo(
+                100,
+                notif,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            androidx.work.ForegroundInfo(
+                100,
+                notif
+            )
+        }
     }
 
     override suspend fun doWork(): Result {
@@ -481,13 +490,26 @@ class WeatherWorker(
             openIntent
         ).build()
 
-        return NotificationCompat.Builder(ctx, "weather")
-            .setSmallIcon(emojiIcon(emoji))
+        val largeIconBitmap = try {
+            android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.aseman_icon)
+        } catch (_: Exception) {
+            null
+        }
+
+        val notif = NotificationCompat.Builder(ctx, "weather")
+            .setSmallIcon(R.drawable.ic_stat_aseman)
+            .apply {
+                if (largeIconBitmap != null) {
+                    setLargeIcon(largeIconBitmap)
+                }
+            }
             .setContentTitle(title)
             .setContentText(summary)
             .setSubText(if (isFa) "آسمان" else "Aseman")
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setColor(0xFF0284C7.toInt())
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
             .setSilent(true)
@@ -498,6 +520,9 @@ class WeatherWorker(
             .addAction(refreshAction)
             .addAction(openAction)
             .build()
+
+        notif.flags = notif.flags or android.app.Notification.FLAG_ONGOING_EVENT or android.app.Notification.FLAG_NO_CLEAR
+        return notif
     }
 
     private suspend fun checkAlerts(
@@ -697,20 +722,31 @@ class WeatherWorker(
 
     private fun alertNotification(
         msg: String
-    ) =
-        NotificationCompat.Builder(
+    ): android.app.Notification {
+        val largeIconBitmap = try {
+            android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.aseman_icon)
+        } catch (_: Exception) {
+            null
+        }
+        return NotificationCompat.Builder(
             ctx,
             "alerts"
         )
             .setSmallIcon(
-                R.drawable.aseman_icon
+                R.drawable.ic_stat_aseman
             )
+            .apply {
+                if (largeIconBitmap != null) {
+                    setLargeIcon(largeIconBitmap)
+                }
+            }
             .setContentTitle(
                 "آسمان"
             )
             .setContentText(msg)
             .setAutoCancel(true)
             .build()
+    }
 
 
 }

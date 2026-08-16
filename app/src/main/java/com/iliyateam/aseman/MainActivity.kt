@@ -245,7 +245,21 @@ private fun startRefreshService(ctx: android.content.Context) {
             ctx,
             Intent(ctx, RefreshService::class.java)
         )
-    } catch (_: Exception) {
+    } catch (_: Throwable) {
+        try {
+            WorkManager.getInstance(ctx.applicationContext).enqueueUniqueWork(
+                "aseman_now",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<WeatherWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+            )
+        } catch (_: Throwable) {
+        }
     }
 }
 
