@@ -426,6 +426,16 @@ class WeatherWorker(
         return IconCompat.createWithBitmap(b)
     }
 
+    private fun repostPendingIntent(): PendingIntent =
+        PendingIntent.getService(
+            ctx,
+            2,
+            Intent(ctx, RefreshService::class.java).apply {
+                action = RefreshService.ACTION_REPOST_NOTIFICATION
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
     private fun buildNotification(
         city: String,
         temp: Int,
@@ -517,6 +527,7 @@ class WeatherWorker(
             .setShowWhen(true)
             .setWhen(System.currentTimeMillis())
             .setContentIntent(openIntent)
+            .setDeleteIntent(repostPendingIntent())
             .addAction(refreshAction)
             .addAction(openAction)
             .build()

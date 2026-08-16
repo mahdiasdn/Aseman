@@ -23,11 +23,17 @@ import kotlinx.coroutines.launch
 
 class RefreshService : Service() {
 
-
     companion object {
         private const val TAG = "RefreshService"
         private const val NOTIFICATION_ID = 100
         private const val WEATHER_NOTIFICATION_ID = 101
+
+        // Fired via the notification's deleteIntent when the user swipes it away.
+        // Android 13+ always allows swiping a foreground-service notification, so
+        // we can't block the swipe itself — instead we catch it and instantly
+        // re-post the notification so it comes right back.
+        const val ACTION_REPOST_NOTIFICATION =
+            "com.iliyateam.aseman.ACTION_REPOST_NOTIFICATION"
     }
 
     private val scope =
@@ -71,6 +77,13 @@ class RefreshService : Service() {
                 "ForegroundStart: ${e.javaClass.simpleName}: ${e.message}"
             )
 
+            return START_STICKY
+        }
+
+        // The notification was just swiped away and we've already re-posted it
+        // above (via initialNotification() + startForeground()). Nothing else
+        // to do — no need to hit the network again just because it was dismissed.
+        if (intent?.action == ACTION_REPOST_NOTIFICATION) {
             return START_STICKY
         }
 
@@ -408,7 +421,7 @@ class RefreshService : Service() {
             nm.createNotificationChannel(
                 NotificationChannel(
                     "weather",
-                    "آب‌وهوا",
+                    "آبوهوا",
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
                     setShowBadge(false)
@@ -446,6 +459,16 @@ class RefreshService : Service() {
         return placeholder()
     }
 
+    private fun repostPendingIntent(): PendingIntent =
+        PendingIntent.getService(
+            this,
+            2,
+            Intent(this, RefreshService::class.java).apply {
+                action = ACTION_REPOST_NOTIFICATION
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
     private fun placeholder() =
         NotificationCompat.Builder(
             this,
@@ -464,6 +487,7 @@ class RefreshService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setSilent(true)
+            .setDeleteIntent(repostPendingIntent())
             .build()
             .also {
                 it.flags = it.flags or android.app.Notification.FLAG_ONGOING_EVENT or android.app.Notification.FLAG_NO_CLEAR
@@ -560,6 +584,7 @@ class RefreshService : Service() {
             .setShowWhen(true)
             .setWhen(System.currentTimeMillis())
             .setContentIntent(openIntent)
+            .setDeleteIntent(repostPendingIntent())
             .addAction(refreshAction)
             .addAction(openAction)
             .build()
@@ -567,8 +592,4 @@ class RefreshService : Service() {
         notif.flags = notif.flags or android.app.Notification.FLAG_ONGOING_EVENT or android.app.Notification.FLAG_NO_CLEAR
         return notif
     }
-
-
 }
-
-
